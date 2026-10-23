@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% load ui_extras %}
+{% block body %}
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
+    <div class="sidebar-head">
+      <a class="brand" href="{% url 'projects:dashboard' %}">
+        <span class="brand-mark"><svg aria-hidden="true"><use href="#icon-logo"></use></svg></span>
+        <span>{{ product_name }}<small>Data quality workspace</small></span>
+      </a>
+    </div>
+
+    <div class="workspace-switcher">
+      <span class="dot" aria-hidden="true"></span>
+      <span>Personal workspace</span>
+    </div>
+
+    <nav class="nav-section" aria-label="Workspace">
+      <div class="nav-label">Workspace</div>
+      <a class="nav-link {% if active_nav == 'dashboard' %}active{% endif %}" href="{% url 'projects:dashboard' %}" {% if active_nav == 'dashboard' %}aria-current="page"{% endif %}>
+        <svg aria-hidden="true"><use href="#icon-dashboard"></use></svg>
+        Overview
+      </a>
+      <a class="nav-link {% if active_nav == 'projects' and request.resolver_match.url_name == 'list' %}active{% endif %}" href="{% url 'projects:list' %}" {% if active_nav == 'projects' and request.resolver_match.url_name == 'list' %}aria-current="page"{% endif %}>
+        <svg aria-hidden="true"><use href="#icon-folder"></use></svg>
+        Projects
+        {% if nav_project_count %}<span class="nav-count">{{ nav_project_count }}</span>{% endif %}
+      </a>
+      <a class="nav-link {% if active_nav == 'datasets' and request.resolver_match.url_name == 'list' %}active{% endif %}" href="{% url 'datasets:list' %}" {% if active_nav == 'datasets' and request.resolver_match.url_name == 'list' %}aria-current="page"{% endif %}>
+        <svg aria-hidden="true"><use href="#icon-database"></use></svg>
+        Datasets
+      </a>
+      <a class="nav-link {% if active_nav == 'rules' %}active{% endif %}" href="{% url 'quality:rules' %}" {% if active_nav == 'rules' %}aria-current="page"{% endif %}>
+        <svg aria-hidden="true"><use href="#icon-shield"></use></svg>
+        Quality rules
+      </a>
+    </nav>
+
+    <div class="sidebar-projects">
+      <div class="nav-section">
+        <div class="nav-label flex items-center justify-between">
+          <span>Recent projects</span>
+          <a class="text-brand" href="{% url 'projects:create' %}" aria-label="New project"><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg></a>
+        </div>
+        {% if nav_projects %}
+          {% for project in nav_projects %}
+            <a class="sidebar-project" href="{% url 'projects:detail' project.pk %}">
+              <span class="project-glyph" aria-hidden="true">{{ project.name|initials }}</span>
+              <span class="truncate">{{ project.name }}</span>
+            </a>
+          {% endfor %}
+        {% else %}
+          <p class="side-note mt-2">Create a project to group related datasets.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="sidebar-foot">
+      <div class="user-card">
+        <span class="user-avatar" aria-hidden="true">{{ user.username|initials }}</span>
+        <div class="user-meta">
+          <strong>{{ user.get_full_name|default:user.username }}</strong>
+          <span>{{ user.email|default:"Local account" }}</span>
+        </div>
+        <a class="btn btn-icon" href="{% url 'accounts:settings' %}" aria-label="Account settings"><svg aria-hidden="true"><use href="#icon-settings"></use></svg></a>
+        <form method="post" action="{% url 'accounts:logout' %}">
+          {% csrf_token %}
+          <button class="btn btn-icon" type="submit" aria-label="Sign out"><svg aria-hidden="true"><use href="#icon-logout"></use></svg></button>
+        </form>
+      </div>
+    </div>
+  </aside>
+
+  <div class="sidebar-backdrop" id="sidebar-backdrop" aria-hidden="true"></div>
+
+  <div class="app-main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn btn-icon mobile-menu-btn" type="button" id="menu-toggle" aria-controls="sidebar" aria-expanded="false" aria-label="Open navigation">
+          <svg aria-hidden="true"><use href="#icon-menu"></use></svg>
+        </button>
+        <div class="topbar-crumbs">
+          {% block breadcrumbs %}<span>Workspace</span>{% endblock %}
+        </div>
+      </div>
+      <div class="topbar-actions">
+        {% block topbar_actions %}
+          <a class="btn btn-secondary btn-sm" href="{% url 'projects:create' %}">
+            <svg aria-hidden="true"><use href="#icon-plus"></use></svg>
+            New project
+          </a>
+        {% endblock %}
+      </div>
+    </header>
+
+    <main class="page-container" id="main-content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+{% endblock %}

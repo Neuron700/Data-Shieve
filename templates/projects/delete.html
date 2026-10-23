@@ -1,0 +1,44 @@
+{% extends "base_app.html" %}
+{% load humanize %}
+{% block title %}Delete {{ project.name }} · DataSieve{% endblock %}
+{% block breadcrumbs %}
+<a href="{% url 'projects:list' %}">Projects</a>
+<svg aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+<a href="{% url 'projects:detail' project.pk %}">{{ project.name|truncatechars:30 }}</a>
+<svg aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+<span>Delete</span>
+{% endblock %}
+{% block topbar_actions %}{% endblock %}
+{% block content %}
+<div style="max-width:760px">
+  <div class="page-head">
+    <div>
+      <div class="eyebrow" style="color:var(--red)">Permanent action</div>
+      <h1 class="page-title">Delete this project?</h1>
+      <p class="page-subtitle">This removes the project, every dataset, version, analysis, and cleaning job inside it.</p>
+    </div>
+  </div>
+
+  <section class="card" style="border-color:#fecdca">
+    <div class="card-body">
+      <div class="alert" style="background:var(--red-soft);border-color:#fecdca;color:#912018;margin-bottom:18px">
+        <svg class="icon" aria-hidden="true"><use href="#icon-alert-triangle"></use></svg>
+        <div>
+          <strong>{{ project.name }}</strong> contains {{ dataset_count|intcomma }} dataset{{ dataset_count|pluralize }}.
+          Private files will be removed from storage. This cannot be undone.
+        </div>
+      </div>
+      {% if dataset_count %}
+        <p class="text-sm text-muted" style="margin-top:0">Consider downloading any cleaned data or reports you need before continuing.</p>
+      {% endif %}
+      <form method="post">
+        {% csrf_token %}
+        <div class="form-actions">
+          <a class="btn btn-secondary" href="{% url 'projects:detail' project.pk %}">Keep project</a>
+          <button class="btn btn-danger" type="submit">Delete project and {{ dataset_count|intcomma }} dataset{{ dataset_count|pluralize }}</button>
+        </div>
+      </form>
+    </div>
+  </section>
+</div>
+{% endblock %}

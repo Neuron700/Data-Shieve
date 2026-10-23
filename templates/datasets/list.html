@@ -1,0 +1,128 @@
+{% extends "base_app.html" %}
+{% load humanize ui_extras %}
+{% block title %}Datasets · DataSieve{% endblock %}
+{% block breadcrumbs %}<span>Datasets</span>{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-secondary btn-sm" href="{% url 'projects:list' %}">
+  <svg aria-hidden="true"><use href="#icon-folder"></use></svg>
+  Projects
+</a>
+<a class="btn btn-primary btn-sm" href="{% url 'projects:list' %}">
+  <svg aria-hidden="true"><use href="#icon-upload"></use></svg>
+  Upload via project
+</a>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Datasets</h1>
+    <p class="page-subtitle">{{ page.paginator.count|intcomma }} dataset{{ page.paginator.count|pluralize }} across your projects. Files are private to your account.</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-secondary" href="{% url 'projects:list' %}"><svg aria-hidden="true"><use href="#icon-plus"></use></svg> Add dataset</a>
+  </div>
+</div>
+
+<section class="card" style="margin-bottom:18px">
+  <div class="card-body" style="padding-bottom:14px">
+    <form method="get" class="grid filter-grid">
+      <div class="field" style="margin:0">
+        <label class="field-label" for="dataset-search">File name</label>
+        <input class="input" id="dataset-search" type="search" name="q" value="{{ query }}" placeholder="Search files">
+      </div>
+      <div class="field" style="margin:0">
+        <label class="field-label" for="status-filter">Status</label>
+        <select class="select" id="status-filter" name="status">
+          <option value="">All statuses</option>
+          {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field" style="margin:0">
+        <label class="field-label" for="project-filter">Project</label>
+        <select class="select" id="project-filter" name="project">
+          <option value="">All projects</option>
+          {% for project in projects %}
+            <option value="{{ project.pk }}" {% if project_id == project.pk|stringformat:"s" %}selected{% endif %}>{{ project.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field" style="margin:0">
+        <label class="field-label" for="date-from">From</label>
+        <input class="input" id="date-from" type="date" name="date_from" value="{{ date_from }}">
+      </div>
+      <div class="field" style="margin:0">
+        <label class="field-label" for="date-to">To</label>
+        <input class="input" id="date-to" type="date" name="date_to" value="{{ date_to }}">
+      </div>
+      <div class="action-group">
+        <button class="btn btn-secondary" type="submit">Filter</button>
+        {% if query or status or project_id or date_from or date_to %}<a class="btn btn-ghost" href="{% url 'datasets:list' %}">Clear</a>{% endif %}
+      </div>
+    </form>
+  </div>
+</section>
+
+{% if page.object_list %}
+  <section class="card">
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>File</th><th>Project</th><th>Rows × cols</th><th>Size</th><th>Score</th><th>Status</th><th>Added</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for dataset in page.object_list %}
+            <tr>
+              <td>
+                <a class="flex items-center gap-2 font-semibold" href="{% url 'datasets:detail' dataset.pk %}">
+                  <svg class="icon" aria-hidden="true"><use href="#icon-{% if dataset.file_format == 'xlsx' %}file-spreadsheet{% else %}file-text{% endif %}"></use></svg>
+                  <span class="truncate" style="max-width:280px">{{ dataset.original_filename }}</span>
+                </a>
+              </td>
+              <td><a class="text-brand" href="{% url 'projects:detail' dataset.project_id %}">{{ dataset.project.name|truncatechars:22 }}</a></td>
+              <td class="num">{{ dataset.row_count|intcomma }} × {{ dataset.column_count }}</td>
+              <td class="num">{{ dataset.file_size|filesizeformat }}</td>
+              <td>
+                {% with run=dataset.latest_analysis_for_card %}
+                  {% if run %}
+                    {% with score=run.summary.score.score %}
+                      {% if score is not None %}
+                        <span class="score-pill score-{{ score|score_tone }}">{{ score }}<small>{{ run.summary.score.category }}</small></span>
+                      {% else %}<span class="text-muted">—</span>{% endif %}
+                    {% endwith %}
+                  {% else %}
+                    <span class="text-muted">Not analysed</span>
+                  {% endif %}
+                {% endwith %}
+              </td>
+              <td><span class="badge badge-{{ dataset.status|status_tone }}">{{ dataset.get_status_display }}</span></td>
+              <td><span class="search-results-meta">{{ dataset.created_at|date:"M j, Y" }}</span></td>
+              <td class="num"><a class="btn btn-ghost btn-sm" href="{% url 'datasets:detail' dataset.pk %}">Open</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "partials/pagination.html" %}
+  </section>
+{% elif query or status or project_id or date_from or date_to %}
+  <div class="card">
+    <div class="empty-state">
+      <div class="empty-icon"><svg aria-hidden="true"><use href="#icon-search"></use></svg></div>
+      <h3>No datasets match these filters</h3>
+      <p>Try a shorter file name, a different project, or a wider date range.</p>
+      <a class="btn btn-secondary" href="{% url 'datasets:list' %}">Clear filters</a>
+    </div>
+  </div>
+{% else %}
+  <div class="card">
+    <div class="empty-state">
+      <div class="empty-icon"><svg aria-hidden="true"><use href="#icon-database"></use></svg></div>
+      <h3>No datasets yet</h3>
+      <p>Open a project and upload a CSV or XLSX file to create the first version and analysis.</p>
+      <a class="btn btn-primary" href="{% url 'projects:list' %}"><svg aria-hidden="true"><use href="#icon-folder"></use></svg> Choose a project</a>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

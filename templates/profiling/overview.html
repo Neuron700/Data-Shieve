@@ -1,0 +1,204 @@
+{% extends "base_app.html" %}
+{% load static humanize ui_extras %}
+{% block title %}Profile · {{ dataset.original_filename }}{% endblock %}
+{% block breadcrumbs %}
+<a href="{% url 'datasets:detail' dataset.pk %}">{{ dataset.original_filename|truncatechars:34 }}</a>
+<svg aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+<span>Profile</span>
+{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-secondary btn-sm" href="{% url 'datasets:preview' dataset.pk %}?version={{ version.pk }}"><svg aria-hidden="true"><use href="#icon-rows"></use></svg> Preview</a>
+<a class="btn btn-primary btn-sm" href="{% url 'quality:findings' dataset.pk %}?version={{ version.pk }}"><svg aria-hidden="true"><use href="#icon-shield"></use></svg> Findings</a>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Column profile</h1>
+    <p class="page-subtitle">{{ dataset.original_filename }} · v{{ version.version_number }} · {{ version.get_version_type_display }}</p>
+  </div>
+  <div class="page-actions">
+    <form class="version-picker" method="get">
+      <label class="mini-label" for="profile-version">Version</label>
+      <select class="select" id="profile-version" name="version" style="width:auto;min-width:190px" data-auto-submit>
+        {% for item in versions %}
+          <option value="{{ item.pk }}" {% if item.pk == version.pk %}selected{% endif %}>{{ item.label }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-secondary btn-sm" type="submit">Switch</button>
+    </form>
+  </div>
+</div>
+
+{% if run.status == "failed" %}
+  <div class="card">
+    <div class="empty-state">
+      <div class="empty-icon"><svg aria-hidden="true"><use href="#icon-alert-triangle"></use></svg></div>
+      <h3>Analysis did not complete</h3>
+      <p>{{ run.error_message|default:"The file could not be profiled safely." }}</p>
+      <form method="post" action="{% url 'datasets:analyze' dataset.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="version_id" value="{{ version.pk }}">
+        <button class="btn btn-primary" type="submit">Retry analysis</button>
+      </form>
+    </div>
+  </div>
+{% else %}
+  <div class="split">
+    <div class="stack">
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <h2 class="card-title">Columns</h2>
+            <p class="card-subtitle">{{ columns|length }} profiled column{{ columns|length|pluralize }}. Scores are relative to this analysis run.</p>
+          </div>
+          <span class="badge badge-neutral">{{ metrics.row_count|intcomma }} rows</span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Column</th><th>Type</th><th>Missing</th><th>Unique</th><th>Findings</th><th>Quality</th><th></th></tr>
+            </thead>
+            <tbody>
+              {% for column in columns %}
+                <tr>
+                  <td>
+                    <a class="col-name" href="{% url 'profiling:column_detail' dataset.pk column.pk %}">{{ column.column_name|truncatechars:40 }}</a>
+                    {% if column.inferred_patterns %}
+                      <div class="flex gap-1 flex-wrap" style="margin-top:4px">
+                        {% for pattern in column.inferred_patterns|slice:":3" %}<span class="badge badge-neutral" style="font-size:8.5px">{{ pattern|token_label }}</span>{% endfor %}
+                      </div>
+                    {% endif %}
+                  </td>
+                  <td><span class="badge badge-neutral">{{ column.detected_type|type_label }}</span></td>
+                  <td class="num">{{ column.null_count|intcomma }}<span class="text-muted"> · {{ column.missing_percentage|percent }}</span></td>
+                  <td class="num">{{ column.unique_count|intcomma }}</td>
+                  <td class="num">{% with count=column_issue_counts|get_item:column.column_name %}{% if count %}<a class="text-brand" href="{% url 'quality:findings' dataset.pk %}?version={{ version.pk }}&q={{ column.column_name|urlencode }}">{{ count }}</a>{% else %}<span class="text-muted">0</span>{% endif %}{% endwith %}</td>
+                  <td>
+                    {% if column.quality_score is not None %}
+                      <span class="score-pill score-{{ column.quality_score|score_tone }}">{{ column.quality_score }}</span>
+                    {% else %}<span class="text-muted">—</span>{% endif %}
+                  </td>
+                  <td class="num"><a class="btn btn-ghost btn-sm" href="{% url 'profiling:column_detail' dataset.pk column.pk %}">Inspect</a></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <h2 class="card-title">Column quality scores</h2>
+            <p class="card-subtitle">Lower scores indicate more missing values or structural findings.</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="chart-box" style="height:260px"><canvas id="column-quality-chart" aria-label="Bar chart of column quality scores" role="img"></canvas></div>
+          {{ score_chart|json_script:"column-quality-data" }}
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <h2 class="card-title">Analysis history</h2>
+            <p class="card-subtitle">All recent runs for this dataset, newest first.</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Version</th><th>Status</th><th>Score</th><th>Started</th><th></th></tr></thead>
+            <tbody>
+              {% for item in analysis_history %}
+                <tr>
+                  <td class="mono">v{{ item.dataset_version.version_number }}</td>
+                  <td><span class="badge badge-{{ item.status|status_tone }}">{{ item.get_status_display }}</span></td>
+                  <td>
+                    {% with value=item.summary.score.score %}
+                      {% if value is not None %}<span class="score-pill score-{{ value|score_tone }}">{{ value }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
+                    {% endwith %}
+                  </td>
+                  <td><span class="search-results-meta">{{ item.started_at|naturaltime }}</span></td>
+                  <td class="num"><a class="btn btn-ghost btn-sm" href="?version={{ item.dataset_version_id }}&analysis={{ item.pk }}">Open</a></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <aside class="stack">
+      <section class="card">
+        <div class="card-head"><h2 class="card-title">Run summary</h2></div>
+        <div class="card-body">
+          <div class="score-insight" style="margin-bottom:16px">
+            <div>
+              <div class="mini-label">Quality score</div>
+              <div class="flex items-center gap-2" style="margin-top:5px">
+                <span class="score-pill score-{{ score.score|score_tone }}" style="font-size:20px">{{ score.score }}</span>
+                <span class="text-sm">{{ score.category }}</span>
+              </div>
+            </div>
+            <span class="badge badge-neutral">{{ summary.formula_version }}</span>
+          </div>
+          <div class="grid grid-2">
+            <div class="metric-tile"><div class="metric-label">Rows</div><div class="metric-value">{{ metrics.row_count|intcomma }}</div></div>
+            <div class="metric-tile"><div class="metric-label">Columns</div><div class="metric-value">{{ metrics.column_count|intcomma }}</div></div>
+            <div class="metric-tile"><div class="metric-label">Missing</div><div class="metric-value">{{ metrics.missing_percentage|percent }}</div></div>
+            <div class="metric-tile"><div class="metric-label">Duplicates</div><div class="metric-value">{{ metrics.duplicate_percentage|percent }}</div></div>
+          </div>
+          <div class="form-note">
+            <svg aria-hidden="true"><use href="#icon-clock"></use></svg>
+            <span>Completed {{ run.completed_at|naturaltime }} · {{ summary.duration_seconds|default:"—" }}s · {{ issue_total|intcomma }} finding record{{ issue_total|pluralize }}.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2 class="card-title">Top findings</h2>
+          <a class="btn btn-ghost btn-sm" href="{% url 'quality:findings' dataset.pk %}?version={{ version.pk }}">All</a>
+        </div>
+        <div class="card-body">
+          {% if top_issues %}
+            <div class="stack">
+              {% for issue in top_issues %}
+                <a class="analysis-row" href="{% url 'quality:findings' dataset.pk %}?version={{ version.pk }}{% if issue.column_name %}&q={{ issue.column_name|urlencode }}{% else %}&rule={{ issue.rule_id }}{% endif %}">
+                  <div style="min-width:0">
+                    <div class="flex items-center gap-2">
+                      <span class="severity severity-{{ issue.severity }}">{{ issue.get_severity_display }}</span>
+                      <span class="mono text-muted">{{ issue.rule_id }}</span>
+                    </div>
+                    <div class="truncate text-sm" style="margin-top:4px">{{ issue.column_name|default:"Dataset-wide"|truncatechars:34 }}</div>
+                    <div class="meta">{{ issue.issue_type|token_label }} · {{ issue.issue_count|intcomma }}</div>
+                  </div>
+                  <svg class="icon text-muted" aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+                </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="empty-inline">No rule findings in this run.</div>
+          {% endif %}
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2 class="card-title">Profile actions</h2></div>
+        <div class="card-body">
+          <div class="stack">
+            <a class="btn btn-secondary" href="{% url 'datasets:preview' dataset.pk %}?version={{ version.pk }}"><svg aria-hidden="true"><use href="#icon-rows"></use></svg> Inspect rows</a>
+            <a class="btn btn-secondary" href="{% url 'quality:findings' dataset.pk %}?version={{ version.pk }}"><svg aria-hidden="true"><use href="#icon-shield"></use></svg> Review findings</a>
+            <a class="btn btn-primary" href="{% url 'cleaning:workspace' dataset.pk %}?version={{ version.pk }}"><svg aria-hidden="true"><use href="#icon-wand"></use></svg> Clean data</a>
+            <a class="btn btn-ghost" href="{% url 'reports:index' dataset.pk %}?version={{ version.pk }}"><svg aria-hidden="true"><use href="#icon-download"></use></svg> Export report</a>
+          </div>
+        </div>
+      </section>
+    </aside>
+  </div>
+{% endif %}
+{% endblock %}
+{% block extra_scripts %}
+<script src="{% static 'vendor/chart.umd.min.js' %}" defer></script>
+{% endblock %}

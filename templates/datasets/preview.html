@@ -1,0 +1,90 @@
+{% extends "base_app.html" %}
+{% load humanize ui_extras %}
+{% block title %}Preview {{ dataset.original_filename }} · DataSieve{% endblock %}
+{% block breadcrumbs %}
+<a href="{% url 'datasets:detail' dataset.pk %}">{{ dataset.original_filename|truncatechars:34 }}</a>
+<svg aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+<span>Preview</span>
+{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-secondary btn-sm" href="{% url 'datasets:detail' dataset.pk %}?version={{ version.pk }}"><svg aria-hidden="true"><use href="#icon-arrow-left"></use></svg> Dataset</a>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Dataset preview</h1>
+    <p class="page-subtitle">First {{ preview.limit|default:100 }} rows of v{{ version.version_number }}. Sensitive values are redacted for display.</p>
+  </div>
+  <div class="page-actions">
+    <form class="version-picker" method="get">
+      <label class="mini-label" for="preview-version">Version</label>
+      <select class="select" id="preview-version" name="version" style="width:auto;min-width:200px" data-auto-submit>
+        {% for item in versions %}
+          <option value="{{ item.pk }}" {% if item.pk == version.pk %}selected{% endif %}>{{ item.label }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-secondary btn-sm" type="submit">Switch</button>
+    </form>
+  </div>
+</div>
+
+<section class="card">
+  <div class="card-head">
+    <div>
+      <h2 class="card-title">{{ dataset.original_filename }}</h2>
+      <p class="card-subtitle">v{{ version.version_number }} · {{ version.get_version_type_display }} · {{ preview.total_rows|default:version.row_count|intcomma }} rows × {{ preview.total_columns|default:version.column_count }} columns</p>
+    </div>
+    <span class="badge {% if preview.redaction_applied %}badge-warning{% else %}badge-success{% endif %}">
+      <svg aria-hidden="true"><use href="#icon-{% if preview.redaction_applied %}lock{% else %}check-circle{% endif %}"></use></svg>
+      {% if preview.redaction_applied %}Redaction applied{% else %}No sensitive columns flagged{% endif %}
+    </span>
+  </div>
+
+  {% if preview_error %}
+    <div class="card-body"><div class="alert" style="margin:0"><svg class="icon" aria-hidden="true"><use href="#icon-alert-triangle"></use></svg><div>{{ preview_error }}</div></div></div>
+  {% elif preview %}
+    <div class="table-wrap">
+      <table class="preview-table">
+        <thead>
+          <tr>
+            <th class="row-index">#</th>
+            {% for column in preview.columns %}
+              {% with profile=profile_map|get_item:column %}
+                <th>
+                  <div>{{ column }}</div>
+                  <div style="display:flex;gap:5px;align-items:center;margin-top:3px">
+                    {% if profile %}<span class="badge badge-neutral" style="font-size:8.5px">{{ profile.detected_type|type_label }}</span><span style="font-size:8.5px;color:#94a3b8">{{ profile.missing_percentage|percent }} missing</span>{% endif %}
+                    {% if column in preview.masked_columns %}<span class="badge badge-warning" style="font-size:8.5px">redacted</span>{% endif %}
+                  </div>
+                </th>
+              {% endwith %}
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in preview.rows %}
+            <tr>
+              <td class="row-index">{{ forloop.counter }}</td>
+              {% for cell in row %}
+                <td class="{% if not cell %}empty-cell{% endif %}">{% if cell %}{{ cell }}{% else %}—{% endif %}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="preview-footnote">
+      <svg aria-hidden="true"><use href="#icon-lock"></use></svg>
+      <span>Masked columns and email/phone/identifier-like patterns are redacted in this preview. The stored source file is unchanged. Redaction is not a guarantee of anonymization.</span>
+    </div>
+  {% else %}
+    <div class="empty-inline">No rows are available for this version.</div>
+  {% endif %}
+</section>
+
+<div class="action-group" style="margin-top:16px">
+  <a class="btn btn-secondary" href="{% url 'profiling:overview' dataset.pk %}?version={{ version.pk }}"><svg aria-hidden="true"><use href="#icon-bar-chart"></use></svg> Column profile</a>
+  <a class="btn btn-secondary" href="{% url 'quality:findings' dataset.pk %}?version={{ version.pk }}"><svg aria-hidden="true"><use href="#icon-shield"></use></svg> Quality findings</a>
+  <a class="btn btn-primary" href="{% url 'cleaning:workspace' dataset.pk %}?version={{ version.pk }}"><svg aria-hidden="true"><use href="#icon-wand"></use></svg> Clean this version</a>
+</div>
+{% endblock %}

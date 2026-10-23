@@ -1,0 +1,209 @@
+{% extends "base_app.html" %}
+{% load humanize ui_extras %}
+{% block title %}Clean {{ dataset.original_filename }} · DataSieve{% endblock %}
+{% block breadcrumbs %}
+<a href="{% url 'datasets:detail' dataset.pk %}">{{ dataset.original_filename|truncatechars:32 }}</a>
+<svg aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+<span>Clean</span>
+{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-secondary btn-sm" href="{% url 'datasets:detail' dataset.pk %}?version={{ selected_version.pk }}"><svg aria-hidden="true"><use href="#icon-arrow-left"></use></svg> Dataset</a>
+{% endblock %}
+{% block content %}
+<noscript><style>.op-panel{display:block!important}</style></noscript>
+<div class="page-head">
+  <div>
+    <div class="eyebrow"><span class="pulse" aria-hidden="true"></span> Versioned cleaning</div>
+    <h1 class="page-title">Clean dataset</h1>
+    <p class="page-subtitle">{{ dataset.original_filename }} · preview every change before writing a new version. The source stays untouched.</p>
+  </div>
+  <div class="page-actions">
+    <form class="version-picker" method="get">
+      <label class="mini-label" for="workspace-version">Source version</label>
+      <select class="select" id="workspace-version" name="version" style="width:auto;min-width:200px" data-auto-submit>
+        {% for item in versions %}
+          <option value="{{ item.pk }}" {% if item.pk == selected_version.pk %}selected{% endif %}>{{ item.label }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-secondary btn-sm" type="submit">Switch</button>
+    </form>
+  </div>
+</div>
+
+{% if load_error %}
+  <div class="alert"><svg class="icon" aria-hidden="true"><use href="#icon-alert-triangle"></use></svg><div>{{ load_error }}</div></div>
+{% endif %}
+
+<div class="clean-layout">
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">New cleaning job</h2>
+        <p class="card-subtitle">Choose an operation and the columns it should affect.</p>
+      </div>
+      <span class="badge badge-brand">v{{ selected_version.version_number }} source</span>
+    </div>
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="field-error-summary" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label" for="{{ form.source_version.id_for_label }}">{{ form.source_version.label }}</label>
+            {{ form.source_version }}
+            {% if form.source_version.errors %}<ul class="errorlist">{{ form.source_version.errors }}</ul>{% endif %}
+          </div>
+          <div class="field">
+            <label class="field-label" for="{{ form.operation.id_for_label }}">Operation</label>
+            {{ form.operation }}
+            {% if form.operation.errors %}<ul class="errorlist">{{ form.operation.errors }}</ul>{% endif %}
+          </div>
+        </div>
+
+        <div class="op-panel visible" id="operation-summary" data-operation-summary style="margin-top:-4px">
+          {% for op in operations %}{% if op.operation == selected_operation %}
+            <div class="op-panel-title" id="operation-summary-title">{{ op.label }}</div>
+            <p class="side-note" id="operation-summary-text" style="margin:0">{{ op.description }} {{ op.note }}</p>
+          {% endif %}{% endfor %}
+        </div>
+        <div id="operation-data" hidden>
+          {% for op in operations %}
+            <span data-operation="{{ op.operation }}" data-label="{{ op.label }}" data-description="{{ op.description }}" data-note="{{ op.note }}"></span>
+          {% endfor %}
+        </div>
+
+
+        <div class="form-section">
+          <div class="form-section-title">Columns</div>
+          {% if columns %}
+            <div class="checkbox-grid">
+              {% for column in columns %}
+                <label class="checkbox-item">
+                  <input type="checkbox" name="columns" value="{{ column.name }}" {% if column.name in selected_columns %}checked{% endif %}>
+                  <span>{{ column.name }}</span>
+                  {% if column.detected_type %}<span class="col-type">{{ column.detected_type|type_label }}</span>{% endif %}
+                </label>
+              {% endfor %}
+            </div>
+            <div class="field-help">Leave every box unchecked for operations that apply to the whole table. Some operations require at least one column.</div>
+          {% else %}
+            <div class="empty-inline">No columns could be loaded from this version.</div>
+          {% endif %}
+        </div>
+
+        <div class="op-panel" data-operation-panel="handle_missing">
+          <div class="op-panel-title">Missing-value settings</div>
+          <div class="field-row">
+            <div class="field" style="margin:0">
+              <label class="field-label" for="{{ form.strategy.id_for_label }}">{{ form.strategy.label }}</label>
+              {{ form.strategy }}
+              {% if form.strategy.errors %}<ul class="errorlist">{{ form.strategy.errors }}</ul>{% endif %}
+            </div>
+            <div class="field" style="margin:0">
+              <label class="field-label" for="{{ form.constant_value.id_for_label }}">{{ form.constant_value.label }}</label>
+              {{ form.constant_value }}
+              {% if form.constant_value.errors %}<ul class="errorlist">{{ form.constant_value.errors }}</ul>{% endif %}
+            </div>
+          </div>
+          <div class="field-help">A constant is only used with the “Replace with a constant” strategy. Mean and median require numeric columns.</div>
+        </div>
+
+        <div class="op-panel" data-operation-panel="convert_type">
+          <div class="op-panel-title">Conversion target</div>
+          <div class="field" style="margin:0">
+            <label class="field-label" for="{{ form.target_type.id_for_label }}">{{ form.target_type.label }}</label>
+            {{ form.target_type }}
+            {% if form.target_type.errors %}<ul class="errorlist">{{ form.target_type.errors }}</ul>{% endif %}
+          </div>
+          <div class="field-help">The operation is rejected if any non-missing value in a selected column cannot be converted.</div>
+        </div>
+
+        <div class="op-panel" data-operation-panel="normalize_categories">
+          <div class="op-panel-title">Exact category mapping</div>
+          <div class="field" style="margin:0">
+            <label class="field-label" for="{{ form.mapping_text.id_for_label }}">{{ form.mapping_text.label }}</label>
+            {{ form.mapping_text }}
+            <div class="field-help">{{ form.mapping_text.help_text }}</div>
+            {% if form.mapping_text.errors %}<ul class="errorlist">{{ form.mapping_text.errors }}</ul>{% endif %}
+          </div>
+          <div class="field-help">Select exactly one column for mapping. Values that do not appear as keys are left unchanged.</div>
+        </div>
+
+        <div class="op-panel" data-operation-panel="mask_identifier">
+          <div class="op-panel-title">Pseudonym settings</div>
+          <div class="field" style="margin:0">
+            <label class="field-label" for="{{ form.identifier_prefix.id_for_label }}">{{ form.identifier_prefix.label }}</label>
+            {{ form.identifier_prefix }}
+            <div class="field-help">{{ form.identifier_prefix.help_text }}</div>
+            {% if form.identifier_prefix.errors %}<ul class="errorlist">{{ form.identifier_prefix.errors }}</ul>{% endif %}
+          </div>
+        </div>
+
+        <div class="form-note">
+          <svg aria-hidden="true"><use href="#icon-info"></use></svg>
+          <span>Previewing creates a job record and does not change the dataset. You must confirm the preview before a new version is written.</span>
+        </div>
+
+        <div class="form-actions">
+          <a class="btn btn-secondary" href="{% url 'datasets:detail' dataset.pk %}?version={{ selected_version.pk }}">Cancel</a>
+          <button class="btn btn-primary" type="submit"><svg aria-hidden="true"><use href="#icon-eye"></use></svg> Preview changes</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <aside class="stack">
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">Source summary</h2></div>
+      <div class="card-body">
+        <div class="meta-grid" style="grid-template-columns:1fr">
+          <div class="kv-row"><span class="mini-label">Version</span><span>v{{ selected_version.version_number }} · {{ selected_version.get_version_type_display }}</span></div>
+          <div class="kv-row"><span class="mini-label">Rows</span><span>{{ selected_version.row_count|intcomma }}</span></div>
+          <div class="kv-row"><span class="mini-label">Columns</span><span>{{ selected_version.column_count|intcomma }}</span></div>
+          <div class="kv-row"><span class="mini-label">Dataset</span><span class="truncate" style="max-width:160px">{{ dataset.original_filename }}</span></div>
+        </div>
+        <div class="form-note"><svg aria-hidden="true"><use href="#icon-layers"></use></svg><span>Cleaning writes a new version and re-runs analysis. The selected source version remains available.</span></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">How preview works</h2></div>
+      <div class="card-body">
+        <div class="timeline">
+          <div class="timeline-item current"><h4>Choose an operation</h4><p>Select columns and configure the strategy.</p></div>
+          <div class="timeline-item"><h4>Inspect the impact</h4><p>See changed cells, dropped rows, examples, and warnings.</p></div>
+          <div class="timeline-item"><h4>Confirm</h4><p>Apply only when the preview is safe; a new version is created.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">Recent jobs</h2></div>
+      <div class="card-body">
+        {% if jobs %}
+          <div class="stack">
+            {% for job in jobs %}
+              <a class="analysis-row" href="{% url 'cleaning:preview' job.pk %}">
+                <div style="min-width:0">
+                  <div class="truncate font-medium">{{ job.operation_config.operation|token_label }}</div>
+                  <div class="meta">v{{ job.source_version.version_number }} → {% if job.output_version %}v{{ job.output_version.version_number }}{% else %}preview{% endif %} · {{ job.created_at|naturaltime }}</div>
+                </div>
+                <span class="badge badge-{{ job.status|status_tone }}">{{ job.get_status_display }}</span>
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-inline">No previous cleaning jobs.</div>
+        {% endif %}
+      </div>
+    </section>
+
+    <div class="alert" style="margin-bottom:0">
+      <svg class="icon" aria-hidden="true"><use href="#icon-lock"></use></svg>
+      <div>Masking and pseudonymization reduce exposure but are not formal anonymization guarantees. Review the result for your use case.</div>
+    </div>
+  </aside>
+</div>
+{% endblock %}
+

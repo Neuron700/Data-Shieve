@@ -1,0 +1,187 @@
+{% extends "base_app.html" %}
+{% load humanize ui_extras %}
+{% block title %}{{ profile.column_name }} · Column profile{% endblock %}
+{% block breadcrumbs %}
+<a href="{% url 'datasets:detail' dataset.pk %}">{{ dataset.original_filename|truncatechars:30 }}</a>
+<svg aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+<a href="{% url 'profiling:overview' dataset.pk %}?version={{ version.pk }}">Profile</a>
+<svg aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+<span>{{ profile.column_name|truncatechars:34 }}</span>
+{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-secondary btn-sm" href="{% url 'profiling:overview' dataset.pk %}?version={{ version.pk }}"><svg aria-hidden="true"><use href="#icon-arrow-left"></use></svg> Profile</a>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="flex items-center gap-2 flex-wrap">
+      <h1 class="page-title">{{ profile.column_name }}</h1>
+      <span class="badge badge-neutral">{{ profile.detected_type|type_label }}</span>
+      {% if profile.quality_score is not None %}<span class="score-pill score-{{ profile.quality_score|score_tone }}">{{ profile.quality_score }}<small>column quality</small></span>{% endif %}
+    </div>
+    <p class="page-subtitle">v{{ version.version_number }} · {{ dataset.original_filename }} · {{ profile.non_null_count|intcomma }} non-missing value{{ profile.non_null_count|pluralize }}</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-secondary" href="{% url 'quality:findings' dataset.pk %}?version={{ version.pk }}&q={{ profile.column_name|urlencode }}"><svg aria-hidden="true"><use href="#icon-shield"></use></svg> Column findings</a>
+    <a class="btn btn-primary" href="{% url 'cleaning:workspace' dataset.pk %}?version={{ version.pk }}"><svg aria-hidden="true"><use href="#icon-wand"></use></svg> Clean column</a>
+  </div>
+</div>
+
+<div class="grid grid-4" style="margin-bottom:18px">
+  <div class="stat-card">
+    <div class="stat-kicker"><span>Missing</span><svg aria-hidden="true"><use href="#icon-alert-triangle"></use></svg></div>
+    <div class="stat-value">{{ profile.null_count|intcomma }}</div>
+    <div class="stat-note">{{ profile.missing_percentage|percent }} of rows.</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-kicker"><span>Unique</span><svg aria-hidden="true"><use href="#icon-hash"></use></svg></div>
+    <div class="stat-value">{{ profile.unique_count|intcomma }}</div>
+    <div class="stat-note">{{ profile.duplicate_value_count|intcomma }} duplicate value{{ profile.duplicate_value_count|pluralize }}.</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-kicker"><span>Non-missing</span><svg aria-hidden="true"><use href="#icon-check-circle"></use></svg></div>
+    <div class="stat-value">{{ profile.non_null_count|intcomma }}</div>
+    <div class="stat-note">of {{ dataset.row_count|intcomma }} rows.</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-kicker"><span>Findings</span><svg aria-hidden="true"><use href="#icon-shield"></use></svg></div>
+    <div class="stat-value">{{ related_issues|length }}</div>
+    <div class="stat-note">Rule findings referencing this column.</div>
+  </div>
+</div>
+
+<div class="split">
+  <div class="stack">
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">Statistics</h2>
+          <p class="card-subtitle">Computed from non-missing values in this version.</p>
+        </div>
+      </div>
+      <div class="card-body">
+        {% if numeric_stats %}
+          <div class="grid grid-3">
+            <div class="metric-tile"><div class="metric-label">Minimum</div><div class="metric-value">{{ numeric_stats.min|plain_number }}</div></div>
+            <div class="metric-tile"><div class="metric-label">Q1</div><div class="metric-value">{{ numeric_stats.q1|plain_number }}</div></div>
+            <div class="metric-tile"><div class="metric-label">Median</div><div class="metric-value">{{ numeric_stats.median|plain_number }}</div></div>
+            <div class="metric-tile"><div class="metric-label">Mean</div><div class="metric-value">{{ numeric_stats.mean|plain_number }}</div></div>
+            <div class="metric-tile"><div class="metric-label">Q3</div><div class="metric-value">{{ numeric_stats.q3|plain_number }}</div></div>
+            <div class="metric-tile"><div class="metric-label">Maximum</div><div class="metric-value">{{ numeric_stats.max|plain_number }}</div></div>
+          </div>
+          <div class="form-note"><svg aria-hidden="true"><use href="#icon-info"></use></svg><span>Standard deviation (sample): {{ numeric_stats.std_dev|plain_number }} · based on {{ numeric_stats.count|intcomma }} numeric value{{ numeric_stats.count|pluralize }}.</span></div>
+        {% elif date_stats %}
+          <div class="grid grid-2">
+            <div class="metric-tile"><div class="metric-label">Earliest</div><div class="metric-value" style="font-size:16px">{{ date_stats.min }}</div></div>
+            <div class="metric-tile"><div class="metric-label">Latest</div><div class="metric-value" style="font-size:16px">{{ date_stats.max }}</div></div>
+          </div>
+          {% if date_stats.formats %}
+            <div class="form-note"><svg aria-hidden="true"><use href="#icon-calendar"></use></svg><span>Observed formats: {% for format in date_stats.formats %}<span class="mono">{{ format }}</span>{% if not forloop.last %}, {% endif %}{% endfor %}</span></div>
+          {% endif %}
+        {% elif boolean_stats %}
+          <div class="grid grid-2">
+            <div class="metric-tile"><div class="metric-label">True</div><div class="metric-value">{{ boolean_stats.true|intcomma }}</div></div>
+            <div class="metric-tile"><div class="metric-label">False</div><div class="metric-value">{{ boolean_stats.false|intcomma }}</div></div>
+          </div>
+        {% elif text_stats %}
+          <div class="grid grid-3">
+            <div class="metric-tile"><div class="metric-label">Shortest</div><div class="metric-value">{{ text_stats.min_length|default:"—" }}</div></div>
+            <div class="metric-tile"><div class="metric-label">Average length</div><div class="metric-value">{{ text_stats.average_length|default:"—" }}</div></div>
+            <div class="metric-tile"><div class="metric-label">Longest</div><div class="metric-value">{{ text_stats.max_length|default:"—" }}</div></div>
+          </div>
+        {% else %}
+          <div class="empty-inline">No summary statistics were produced for this column.</div>
+        {% endif %}
+
+        {% if text_stats.top_values %}
+          <div class="form-section">
+            <div class="form-section-title">Most frequent values</div>
+            <div class="top-value-list">
+              {% for item in text_stats.top_values %}
+                <div class="top-value">
+                  <span class="truncate">{{ item.value|truncatechars:60 }}</span>
+                  <strong>{{ item.count|intcomma }}</strong>
+                  <div class="bar"><span style="width:{{ item.count|share_of:profile.non_null_count }}%"></span></div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        {% elif text_stats.top_values_omitted %}
+          <div class="form-note"><svg aria-hidden="true"><use href="#icon-lock"></use></svg><span>Top values are hidden because this column looks sensitive or has very high cardinality.</span></div>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">Findings for this column</h2>
+          <p class="card-subtitle">Explanations reference counts and row positions, not raw values.</p>
+        </div>
+      </div>
+      {% if related_issues %}
+        <div class="card-body">
+          <div class="stack">
+            {% for issue in related_issues %}
+              <article class="card" style="box-shadow:none">
+                <div class="card-body">
+                  <div class="flex items-start justify-between gap-3 flex-wrap">
+                    <div>
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <span class="severity severity-{{ issue.severity }}">{{ issue.get_severity_display }}</span>
+                        <span class="mono text-muted">{{ issue.rule_id }}</span>
+                        <span class="badge badge-neutral">{{ issue.issue_type|token_label }}</span>
+                      </div>
+                      <h3 style="font-size:13px;margin:8px 0 4px">{{ issue.get_issue_type_display|default:issue.issue_type|token_label }}</h3>
+                      <p class="text-sm text-muted" style="margin:0;line-height:1.6">{{ issue.explanation }}</p>
+                    </div>
+                    <span class="badge badge-warning">{{ issue.issue_count|intcomma }} affected</span>
+                  </div>
+                  <div class="form-note" style="margin-top:10px"><svg aria-hidden="true"><use href="#icon-arrow-right"></use></svg><span><strong>Recommendation:</strong> {{ issue.recommendation }}</span></div>
+                  {% if issue.sample_positions %}
+                    <div class="flex gap-1 flex-wrap" style="margin-top:10px" aria-label="Sample row positions">
+                      {% for position in issue.sample_positions|slice:":8" %}<span class="badge badge-neutral mono">row {{ position|intcomma }}</span>{% endfor %}
+                      {% if issue.issue_count > 8 %}<span class="search-results-meta">and more</span>{% endif %}
+                    </div>
+                  {% endif %}
+                </div>
+              </article>
+            {% endfor %}
+          </div>
+        </div>
+      {% else %}
+        <div class="empty-inline">No rule findings reference this column in this run.</div>
+      {% endif %}
+    </section>
+  </div>
+
+  <aside class="stack">
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">Inferred patterns</h2></div>
+      <div class="card-body">
+        {% if profile.inferred_patterns %}
+          <div class="flex gap-1 flex-wrap">
+            {% for pattern in profile.inferred_patterns %}<span class="badge badge-brand">{{ pattern|token_label }}</span>{% endfor %}
+          </div>
+          <div class="form-note"><svg aria-hidden="true"><use href="#icon-info"></use></svg><span>Patterns are heuristics derived from values and column names. They are not definitive classifications.</span></div>
+        {% else %}
+          <div class="empty-inline">No specific patterns were inferred.</div>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">Column metadata</h2></div>
+      <div class="card-body">
+        <div class="meta-grid" style="grid-template-columns:1fr">
+          <div class="kv-row"><span class="mini-label">Detected type</span><span>{{ profile.detected_type|type_label }}</span></div>
+          <div class="kv-row"><span class="mini-label">Analysis run</span><span class="mono">#{{ run.pk }}</span></div>
+          <div class="kv-row"><span class="mini-label">Version</span><span>v{{ version.version_number }}</span></div>
+          <div class="kv-row"><span class="mini-label">Quality score</span><span>{% if profile.quality_score is not None %}{{ profile.quality_score }}{% else %}—{% endif %}</span></div>
+        </div>
+        <div class="form-note"><svg aria-hidden="true"><use href="#icon-lock"></use></svg><span>Raw values are not copied into the profile. Sensitive columns have their top values omitted.</span></div>
+      </div>
+    </section>
+  </aside>
+</div>
+{% endblock %}

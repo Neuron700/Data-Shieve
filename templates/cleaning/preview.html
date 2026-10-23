@@ -1,0 +1,209 @@
+{% extends "base_app.html" %}
+{% load humanize ui_extras %}
+{% block title %}Cleaning preview · {{ dataset.original_filename }}{% endblock %}
+{% block breadcrumbs %}
+<a href="{% url 'datasets:detail' dataset.pk %}">{{ dataset.original_filename|truncatechars:32 }}</a>
+<svg aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+<a href="{% url 'cleaning:workspace' dataset.pk %}?version={{ source_version.pk }}">Clean</a>
+<svg aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+<span>Preview #{{ job.pk }}</span>
+{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-secondary btn-sm" href="{% url 'cleaning:workspace' dataset.pk %}?version={{ source_version.pk }}"><svg aria-hidden="true"><use href="#icon-arrow-left"></use></svg> Cleaner</a>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="flex items-center gap-2 flex-wrap">
+      <h1 class="page-title">Cleaning preview</h1>
+      <span class="badge badge-{{ job.status|status_tone }}">{{ job.get_status_display }}</span>
+      {% if preview.sensitive %}<span class="badge badge-warning"><svg aria-hidden="true"><use href="#icon-lock"></use></svg> Sensitive operation</span>{% endif %}
+    </div>
+    <p class="page-subtitle">{{ preview.operation_label|default:job.operation_config.operation|token_label }} on v{{ source_version.version_number }} of {{ dataset.original_filename }}. {% if job.status == "previewed" %}Nothing has been written yet.{% else %}This preview is read-only.{% endif %}</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-secondary" href="{% url 'datasets:preview' dataset.pk %}?version={{ source_version.pk }}"><svg aria-hidden="true"><use href="#icon-rows"></use></svg> Source preview</a>
+  </div>
+</div>
+
+{% if job.status == "applied" and job.output_version %}
+  <div class="alert" style="background:var(--green-soft);border-color:#c7f0d8;color:var(--green)">
+    <svg class="icon" aria-hidden="true"><use href="#icon-check-circle"></use></svg>
+    <div>This job was applied. <a class="font-semibold" href="{% url 'datasets:detail' dataset.pk %}?version={{ job.output_version_id }}">Open output v{{ job.output_version.version_number }}</a> · the source version is unchanged.</div>
+  </div>
+{% elif job.status == "discarded" %}
+  <div class="alert">
+    <svg class="icon" aria-hidden="true"><use href="#icon-info"></use></svg>
+    <div>This preview was discarded. No new version was created.</div>
+  </div>
+{% endif %}
+
+<div class="grid grid-4" style="margin-bottom:18px">
+  <div class="stat-card">
+    <div class="stat-kicker"><span>Changed cells</span><svg aria-hidden="true"><use href="#icon-edit"></use></svg></div>
+    <div class="stat-value">{{ preview.changed_cells|default:0|intcomma }}</div>
+    <div class="stat-note">{{ preview.affected_rows|default:0|intcomma }} affected row{{ preview.affected_rows|default:0|pluralize }}.</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-kicker"><span>Rows</span><svg aria-hidden="true"><use href="#icon-rows"></use></svg></div>
+    <div class="stat-value">{{ preview.rows_after|default:0|intcomma }}</div>
+    <div class="stat-note">was {{ preview.rows_before|default:0|intcomma }} · {{ preview.dropped_rows|default:0|intcomma }} dropped.</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-kicker"><span>Columns</span><svg aria-hidden="true"><use href="#icon-columns"></use></svg></div>
+    <div class="stat-value">{{ preview.columns_after|default:0|intcomma }}</div>
+    <div class="stat-note">was {{ preview.columns_before|default:0|intcomma }}.</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-kicker"><span>Can apply</span><svg aria-hidden="true"><use href="#icon-shield"></use></svg></div>
+    <div class="stat-value">{% if preview.can_apply %}Yes{% else %}No{% endif %}</div>
+    <div class="stat-note">{% if preview.can_apply %}The output has rows and columns.{% else %}Adjust the configuration first.{% endif %}</div>
+  </div>
+</div>
+
+<div class="split">
+  <div class="stack">
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">Change examples</h2>
+          <p class="card-subtitle">{% if preview.examples_truncated %}First {{ preview.examples|length }} changes shown.{% else %}Up to eight changed cells.{% endif %} Values are redacted when sensitive.</p>
+        </div>
+      </div>
+      {% if preview.examples %}
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Row</th><th>Column</th><th>Before</th><th>After</th></tr></thead>
+            <tbody>
+              {% for example in preview.examples %}
+                <tr>
+                  <td class="mono">{{ example.row }}</td>
+                  <td class="font-medium">{{ example.column|truncatechars:32 }}</td>
+                  <td class="mono">{{ example.before|default:"—" }}</td>
+                  <td class="mono" style="color:var(--brand-strong)">{{ example.after|default:"—" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-inline">{% if preview.row_delta_operation %}This operation changes row counts, so cell-level examples are not shown.{% else %}No cell values will change for this configuration.{% endif %}</div>
+      {% endif %}
+    </section>
+
+    {% if preview.column_mapping %}
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <h2 class="card-title">Column mapping</h2>
+            <p class="card-subtitle">{% if preview.column_mapping_truncated %}First 30 renamed columns shown.{% else %}Headers that change in the output version.{% endif %}</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Before</th><th>After</th></tr></thead>
+            <tbody>
+              {% for row in preview.column_mapping %}<tr><td class="mono">{{ row.from }}</td><td class="mono" style="color:var(--brand-strong)">{{ row.to }}</td></tr>{% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    {% endif %}
+
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">Metrics before and after</h2>
+          <p class="card-subtitle">Computed on the preview result, before anything is written.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Metric</th><th>Before</th><th>After</th></tr></thead>
+          <tbody>
+            <tr><td>Rows</td><td class="num">{{ preview.metrics.before.row_count|intcomma }}</td><td class="num">{{ preview.metrics.after.row_count|intcomma }}</td></tr>
+            <tr><td>Columns</td><td class="num">{{ preview.metrics.before.column_count|intcomma }}</td><td class="num">{{ preview.metrics.after.column_count|intcomma }}</td></tr>
+            <tr><td>Missing cells</td><td class="num">{{ preview.metrics.before.missing_cells|intcomma }}</td><td class="num">{{ preview.metrics.after.missing_cells|intcomma }}</td></tr>
+            <tr><td>Missing %</td><td class="num">{{ preview.metrics.before.missing_percentage|percent }}</td><td class="num">{{ preview.metrics.after.missing_percentage|percent }}</td></tr>
+            <tr><td>Duplicate rows</td><td class="num">{{ preview.metrics.before.duplicate_rows|intcomma }}</td><td class="num">{{ preview.metrics.after.duplicate_rows|intcomma }}</td></tr>
+            <tr><td>Empty rows</td><td class="num">{{ preview.metrics.before.empty_rows|intcomma }}</td><td class="num">{{ preview.metrics.after.empty_rows|intcomma }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <aside class="stack">
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">Operation configuration</h2></div>
+      <div class="card-body">
+        <div class="meta-grid" style="grid-template-columns:1fr">
+          <div class="kv-row"><span class="mini-label">Operation</span><span>{{ preview.operation_label }}</span></div>
+          <div class="kv-row"><span class="mini-label">Source</span><span>v{{ source_version.version_number }}</span></div>
+          <div class="kv-row"><span class="mini-label">Job</span><span class="mono">#{{ job.pk }}</span></div>
+          <div class="kv-row"><span class="mini-label">Created</span><span>{{ job.created_at|naturaltime }}</span></div>
+        </div>
+        {% if preview.safe_config %}
+          <div class="form-section">
+            <div class="form-section-title">Safe configuration</div>
+            <div class="stack">
+              {% for key, value in preview.safe_config.items %}
+                {% if key != "operation" %}
+                  <div class="flex items-start justify-between gap-3">
+                    <span class="mini-label">{{ key|token_label }}</span>
+                    <span class="text-sm mono" style="text-align:right;overflow-wrap:anywhere;max-width:170px">{{ value|config_value }}</span>
+                  </div>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+        {% if preview.note %}<div class="form-note"><svg aria-hidden="true"><use href="#icon-info"></use></svg><span>{{ preview.note }}</span></div>{% endif %}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">Warnings</h2></div>
+      <div class="card-body">
+        {% if preview.warnings %}
+          <div class="stack">
+            {% for warning in preview.warnings %}
+              <div class="alert" style="margin:0">
+                <svg class="icon" aria-hidden="true"><use href="#icon-{% if warning.level == 'danger' %}alert-triangle{% elif warning.level == 'warning' %}alert-circle{% else %}info{% endif %}"></use></svg>
+                <div>{{ warning.text }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-inline">No warnings for this preview.</div>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">Next step</h2></div>
+      <div class="card-body">
+        {% if job.status == "previewed" %}
+          {% if preview.can_apply %}
+            <p class="text-sm text-muted" style="line-height:1.6;margin-top:0">Applying creates a cleaned version and re-runs the analysis. The source version remains available.</p>
+            <form method="post" action="{% url 'cleaning:apply' job.pk %}">
+              {% csrf_token %}
+              <button class="btn btn-primary" type="submit" style="width:100%"><svg aria-hidden="true"><use href="#icon-check"></use></svg> Apply and create version</button>
+            </form>
+          {% else %}
+            <div class="alert" style="margin:0 0 12px"><svg class="icon" aria-hidden="true"><use href="#icon-alert-triangle"></use></svg><div>This configuration cannot be applied. Adjust the operation to leave at least one row and column.</div></div>
+          {% endif %}
+          <form method="post" action="{% url 'cleaning:discard' job.pk %}" style="margin-top:8px">
+            {% csrf_token %}
+            <button class="btn btn-secondary" type="submit" style="width:100%">Discard preview</button>
+          </form>
+        {% elif job.status == "applied" and job.output_version %}
+          <a class="btn btn-primary" href="{% url 'datasets:detail' dataset.pk %}?version={{ job.output_version_id }}" style="width:100%">Open output version</a>
+        {% else %}
+          <a class="btn btn-secondary" href="{% url 'cleaning:workspace' dataset.pk %}?version={{ source_version.pk }}" style="width:100%">Start another preview</a>
+        {% endif %}
+      </div>
+    </section>
+  </aside>
+</div>
+{% endblock %}

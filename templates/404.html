@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Page not found · DataSieve{% endblock %}
+{% block body_class %}landing{% endblock %}
+{% block body %}
+<main class="error-page" id="main-content">
+  <a class="brand" href="{% url 'projects:home' %}" style="justify-content:center;margin-bottom:22px">
+    <span class="brand-mark"><svg aria-hidden="true"><use href="#icon-logo"></use></svg></span>
+    <span>DataSieve<small>Data quality workspace</small></span>
+  </a>
+  <div class="error-code">404</div>
+  <h1>This page is not here</h1>
+  <p>The address may be mistyped, or the dataset or project was removed. Nothing in your workspace was changed.</p>
+  <div class="flex items-center justify-center gap-2">
+    <a class="btn btn-primary" href="{% url 'projects:home' %}"><svg aria-hidden="true"><use href="#icon-arrow-left"></use></svg> Back to DataSieve</a>
+    <a class="btn btn-secondary" href="{% url 'projects:dashboard' %}">Open workspace</a>
+  </div>
+</main>
+{% endblock %}

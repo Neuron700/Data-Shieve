@@ -1,0 +1,66 @@
+{% load humanize ui_extras %}
+{% if page.object_list %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>Severity</th><th>Rule</th><th>Column</th><th>Finding</th><th>Affected</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for issue in page.object_list %}
+          <tr>
+            <td><span class="severity severity-{{ issue.severity }}">{{ issue.get_severity_display }}</span></td>
+            <td><a class="mono text-brand" href="{% querystring rule=issue.rule_id page=None %}">{{ issue.rule_id }}</a></td>
+            <td>
+              {% if issue.column_name %}
+                <a class="col-name" href="{% querystring q=issue.column_name page=None %}">{{ issue.column_name|truncatechars:30 }}</a>
+              {% else %}
+                <span class="text-muted">Dataset-wide</span>
+              {% endif %}
+            </td>
+            <td style="max-width:440px">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="badge badge-neutral">{{ issue.issue_type|token_label }}</span>
+                <span class="search-results-meta">{{ issue.get_status_display }}</span>
+              </div>
+              <details style="margin-top:5px">
+                <summary class="text-brand text-sm" style="cursor:pointer">Explanation and recommendation</summary>
+                <p class="text-sm text-muted" style="line-height:1.6;margin:6px 0">{{ issue.explanation }}</p>
+                <p class="text-sm" style="line-height:1.6;margin:0"><strong>Recommendation:</strong> {{ issue.recommendation }}</p>
+                {% if issue.sample_positions %}
+                  <div class="flex gap-1 flex-wrap" style="margin-top:7px">
+                    {% for position in issue.sample_positions|slice:":8" %}<span class="badge badge-neutral mono">row {{ position|intcomma }}</span>{% endfor %}
+                    {% if issue.issue_count > 8 %}<span class="search-results-meta">and more</span>{% endif %}
+                  </div>
+                {% endif %}
+              </details>
+            </td>
+            <td class="num">{{ issue.issue_count|intcomma }}</td>
+            <td><span class="badge badge-{{ issue.status|status_tone }}">{{ issue.get_status_display }}</span></td>
+            <td>
+              <form class="inline-form" method="post" action="{% url 'quality:issue_status' issue.pk %}">
+                {% csrf_token %}
+                <label class="sr-only" for="issue-status-{{ issue.pk }}">Update status for {{ issue.rule_id }}</label>
+                <select class="select" id="issue-status-{{ issue.pk }}" name="status" style="width:auto;min-width:112px;min-height:30px;padding:5px 28px 5px 8px;font-size:10.5px">
+                  {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if issue.status == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <button class="btn btn-secondary btn-sm" type="submit">Save</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "partials/pagination.html" %}
+{% else %}
+  <div class="empty-state">
+    <div class="empty-icon"><svg aria-hidden="true"><use href="#icon-check-circle"></use></svg></div>
+    <h3>No findings match</h3>
+    <p>{% if query or severity or rule_id or status %}Adjust the filters to see more findings.{% else %}This analysis produced no rule findings for the selected version.{% endif %}</p>
+    {% if query or severity or rule_id or status %}
+      <a class="btn btn-secondary" href="{% url 'quality:findings' dataset.pk %}?version={{ version.pk }}">Clear filters</a>
+    {% endif %}
+  </div>
+{% endif %}

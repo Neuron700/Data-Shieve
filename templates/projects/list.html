@@ -1,0 +1,75 @@
+{% extends "base_app.html" %}
+{% load humanize ui_extras %}
+{% block title %}Projects · DataSieve{% endblock %}
+{% block breadcrumbs %}<span>Projects</span>{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-primary btn-sm" href="{% url 'projects:create' %}">
+  <svg aria-hidden="true"><use href="#icon-plus"></use></svg>
+  New project
+</a>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Projects</h1>
+    <p class="page-subtitle">{{ total|intcomma }} project{{ total|pluralize }} in your workspace. Projects group datasets and cleaning history.</p>
+  </div>
+  <div class="page-actions">
+    <form class="action-group" method="get" role="search">
+      <label class="sr-only" for="project-search">Search projects</label>
+      <input class="input" id="project-search" type="search" name="q" value="{{ query }}" placeholder="Search projects" style="min-width:220px">
+      <button class="btn btn-secondary" type="submit"><svg aria-hidden="true"><use href="#icon-search"></use></svg> Search</button>
+      {% if query %}<a class="btn btn-ghost" href="{% url 'projects:list' %}">Clear</a>{% endif %}
+    </form>
+  </div>
+</div>
+
+{% if page.object_list %}
+  <div class="grid grid-3">
+    {% for project in page.object_list %}
+      <article class="card project-card">
+        <div class="card-body">
+          <div class="project-card-head">
+            <div class="flex items-center gap-3" style="min-width:0">
+              <span class="project-mark" aria-hidden="true">{{ project.name|initials }}</span>
+              <div style="min-width:0">
+                <h2 class="project-card-title"><a href="{% url 'projects:detail' project.pk %}">{{ project.name }}</a></h2>
+                <span class="search-results-meta">{{ project.dataset_count }} dataset{{ project.dataset_count|pluralize }}</span>
+              </div>
+            </div>
+            <a class="btn btn-icon" href="{% url 'projects:edit' project.pk %}" aria-label="Edit {{ project.name }}"><svg aria-hidden="true"><use href="#icon-edit"></use></svg></a>
+          </div>
+          {% if project.description %}
+            <p class="project-card-desc">{{ project.description }}</p>
+          {% else %}
+            <p class="project-card-desc">No description yet. Add context so the project stays understandable.</p>
+          {% endif %}
+          <div class="project-card-foot">
+            <span>Updated {{ project.updated_at|naturaltime }}</span>
+            <a class="text-brand font-semibold" href="{% url 'projects:detail' project.pk %}">Open <svg class="icon" aria-hidden="true"><use href="#icon-arrow-right"></use></svg></a>
+          </div>
+        </div>
+      </article>
+    {% endfor %}
+  </div>
+  {% include "partials/pagination.html" %}
+{% elif query %}
+  <div class="card">
+    <div class="empty-state">
+      <div class="empty-icon"><svg aria-hidden="true"><use href="#icon-search"></use></svg></div>
+      <h3>No projects match “{{ query }}”</h3>
+      <p>Try a shorter term or clear the search to see every project.</p>
+      <a class="btn btn-secondary" href="{% url 'projects:list' %}">Clear search</a>
+    </div>
+  </div>
+{% else %}
+  <div class="card">
+    <div class="empty-state">
+      <div class="empty-icon"><svg aria-hidden="true"><use href="#icon-folder"></use></svg></div>
+      <h3>Start with a project</h3>
+      <p>Every dataset belongs to a project. Create one to group related files and keep decisions easy to trace.</p>
+      <a class="btn btn-primary" href="{% url 'projects:create' %}"><svg aria-hidden="true"><use href="#icon-plus"></use></svg> Create project</a>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

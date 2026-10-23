@@ -1,0 +1,98 @@
+{% extends "base_app.html" %}
+{% load humanize ui_extras %}
+{% block title %}Versions · {{ dataset.original_filename }}{% endblock %}
+{% block breadcrumbs %}
+<a href="{% url 'datasets:detail' dataset.pk %}">{{ dataset.original_filename|truncatechars:34 }}</a>
+<svg aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+<span>Versions</span>
+{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-primary btn-sm" href="{% url 'cleaning:workspace' dataset.pk %}"><svg aria-hidden="true"><use href="#icon-wand"></use></svg> Clean dataset</a>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Version history</h1>
+    <p class="page-subtitle">Every cleaning job writes a new immutable version. The original file is never modified.</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-secondary" href="{% url 'datasets:detail' dataset.pk %}">Back to dataset</a>
+  </div>
+</div>
+
+<section class="card" style="margin-bottom:18px">
+  <div class="card-head">
+    <div>
+      <h2 class="card-title">Versions</h2>
+      <p class="card-subtitle">{{ versions|length }} version{{ versions|length|pluralize }} · {{ dataset.original_filename }}</p>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Version</th><th>Type</th><th>Parent</th><th>Rows × cols</th><th>Latest analysis</th><th>Created</th><th></th></tr></thead>
+      <tbody>
+        {% for version in versions %}
+          <tr>
+            <td class="mono">v{{ version.version_number }}</td>
+            <td><span class="badge {% if version.version_type == 'original' %}badge-neutral{% else %}badge-brand{% endif %}">{{ version.get_version_type_display }}</span></td>
+            <td>{% if version.parent_version %}<span class="mono">v{{ version.parent_version.version_number }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td class="num">{{ version.row_count|intcomma }} × {{ version.column_count }}</td>
+            <td>
+              {% with run=version.latest_run_for_display %}
+                {% if run %}
+                  {% with score=run.summary.score.score %}
+                    {% if score is not None %}
+                      <a class="score-pill score-{{ score|score_tone }}" href="{% url 'profiling:overview' dataset.pk %}?version={{ version.pk }}&analysis={{ run.pk }}">{{ score }}<small>{{ run.summary.score.category }}</small></a>
+                    {% else %}
+                      <span class="badge badge-{{ run.status|status_tone }}">{{ run.get_status_display }}</span>
+                    {% endif %}
+                  {% endwith %}
+                {% else %}
+                  <span class="text-muted">Not analysed</span>
+                {% endif %}
+              {% endwith %}
+            </td>
+            <td><span class="search-results-meta">{{ version.created_at|naturaltime }}</span></td>
+            <td class="table-actions">
+              <a class="btn btn-ghost btn-sm" href="{% url 'datasets:detail' dataset.pk %}?version={{ version.pk }}">Open</a>
+              <a class="btn btn-ghost btn-sm" href="{% url 'datasets:preview' dataset.pk %}?version={{ version.pk }}">Preview</a>
+              <a class="btn btn-ghost btn-sm" href="{% url 'reports:index' dataset.pk %}?version={{ version.pk }}">Export</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-head">
+    <div>
+      <h2 class="card-title">Cleaning jobs</h2>
+      <p class="card-subtitle">Previewed, applied, failed, and discarded operations.</p>
+    </div>
+  </div>
+  {% if jobs %}
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Operation</th><th>Source</th><th>Output</th><th>Impact</th><th>Status</th><th>Created</th><th></th></tr></thead>
+        <tbody>
+          {% for job in jobs %}
+            <tr>
+              <td class="font-medium">{{ job.operation_config.operation|token_label }}</td>
+              <td><span class="mono">v{{ job.source_version.version_number }}</span></td>
+              <td>{% if job.output_version %}<a class="text-brand mono" href="{% url 'datasets:detail' dataset.pk %}?version={{ job.output_version_id }}">v{{ job.output_version.version_number }}</a>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+              <td class="num">{{ job.preview_summary.changed_cells|default:0|intcomma }} cells · {{ job.preview_summary.dropped_rows|default:0|intcomma }} rows</td>
+              <td><span class="badge badge-{{ job.status|status_tone }}">{{ job.get_status_display }}</span></td>
+              <td><span class="search-results-meta">{{ job.created_at|naturaltime }}</span></td>
+              <td class="table-actions"><a class="btn btn-ghost btn-sm" href="{% url 'cleaning:preview' job.pk %}">View preview</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-inline">No cleaning jobs have been created for this dataset.</div>
+  {% endif %}
+</section>
+{% endblock %}

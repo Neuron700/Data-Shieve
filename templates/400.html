@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Bad request · DataSieve{% endblock %}
+{% block body_class %}landing{% endblock %}
+{% block body %}
+<main class="error-page" id="main-content">
+  <a class="brand" href="{% url 'projects:home' %}" style="justify-content:center;margin-bottom:22px">
+    <span class="brand-mark"><svg aria-hidden="true"><use href="#icon-logo"></use></svg></span>
+    <span>DataSieve<small>Data quality workspace</small></span>
+  </a>
+  <div class="error-code">400</div>
+  <h1>The request was not valid</h1>
+  <p>The browser sent a request DataSieve could not accept. Return to the workspace and try the action again.</p>
+  <div class="flex items-center justify-center gap-2">
+    <a class="btn btn-primary" href="{% url 'projects:dashboard' %}">Open workspace</a>
+    <a class="btn btn-secondary" href="{% url 'projects:home' %}">Home</a>
+  </div>
+</main>
+{% endblock %}

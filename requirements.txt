@@ -1,0 +1,10 @@
+Django==6.1.2
+pandas==3.1.0
+numpy==2.5.4
+openpyxl==3.1.5
+python-dotenv==1.2.4
+psycopg[binary]==3.3.6
+
+# Test tooling
+pytest==9.1.1
+pytest-django==4.14.0

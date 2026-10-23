@@ -1,0 +1,87 @@
+{% extends "base_app.html" %}
+{% block title %}Upload dataset · DataSieve{% endblock %}
+{% block breadcrumbs %}
+<a href="{% url 'projects:list' %}">Projects</a>
+<svg aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+<a href="{% url 'projects:detail' project.pk %}">{{ project.name|truncatechars:28 }}</a>
+<svg aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+<span>Upload</span>
+{% endblock %}
+{% block topbar_actions %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="eyebrow"><span class="pulse" aria-hidden="true"></span> New dataset</div>
+    <h1 class="page-title">Upload to {{ project.name }}</h1>
+    <p class="page-subtitle">The original file is stored unchanged. DataSieve profiles it and runs the quality rules.</p>
+  </div>
+</div>
+
+<div class="split">
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Choose a file</h2>
+        <p class="card-subtitle">CSV or XLSX, up to {{ max_upload_mb }} MB.</p>
+      </div>
+      <span class="badge badge-brand"><svg aria-hidden="true"><use href="#icon-lock"></use></svg> Private</span>
+    </div>
+    <div class="card-body">
+      <form method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="field-error-summary" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+
+        <div class="drop-zone" id="drop-zone" data-max-mb="{{ max_upload_mb|default:20 }}">
+          {{ form.file }}
+          <div class="drop-icon"><svg aria-hidden="true"><use href="#icon-upload"></use></svg></div>
+          <div class="drop-title">Drop a CSV or XLSX here</div>
+          <div class="drop-sub">or click to browse your device</div>
+          <div class="file-name" id="file-name"></div>
+        </div>
+        {% if form.file.errors %}<ul class="errorlist">{{ form.file.errors }}</ul>{% endif %}
+        <div class="field-help" id="upload-file-help" style="margin-bottom:18px">Single-sheet workbooks import directly. Multi-sheet workbooks ask you to choose one worksheet before import.</div>
+
+        <div class="field">
+          <label class="field-label" for="{{ form.delimiter.id_for_label }}">{{ form.delimiter.label }}</label>
+          {{ form.delimiter }}
+        </div>
+        <div class="field-help" style="margin-top:-10px;margin-bottom:18px">{{ form.delimiter.help_text }}</div>
+
+        <div class="form-note">
+          <svg aria-hidden="true"><use href="#icon-shield"></use></svg>
+          <span>Your file is stored in private storage and is only accessible to your account. DataSieve does not send it to an external analysis service.</span>
+        </div>
+
+        <div class="form-actions">
+          <a class="btn btn-secondary" href="{% url 'projects:detail' project.pk %}">Cancel</a>
+          <button class="btn btn-primary" type="submit"><svg aria-hidden="true"><use href="#icon-upload"></use></svg> Upload and profile</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <aside class="stack">
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">What happens next</h2></div>
+      <div class="card-body">
+        <div class="stack">
+          <div class="flex gap-2 items-start"><span class="badge badge-brand">1</span><div><strong class="text-sm">Import</strong><p class="search-results-meta">The parser detects encoding, delimiter, headers, and sheet names.</p></div></div>
+          <div class="flex gap-2 items-start"><span class="badge badge-brand">2</span><div><strong class="text-sm">Profile</strong><p class="search-results-meta">Rows, columns, missing values, types, uniqueness, and patterns are measured.</p></div></div>
+          <div class="flex gap-2 items-start"><span class="badge badge-brand">3</span><div><strong class="text-sm">Review</strong><p class="search-results-meta">Ten deterministic rules produce findings with row positions and recommendations.</p></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">Before you upload</h2></div>
+      <div class="card-body">
+        <div class="stack">
+          <div class="flex gap-2 items-start"><svg class="icon text-brand" aria-hidden="true"><use href="#icon-check-circle"></use></svg><span class="text-sm">Use a header row in the first row of the sheet.</span></div>
+          <div class="flex gap-2 items-start"><svg class="icon text-brand" aria-hidden="true"><use href="#icon-check-circle"></use></svg><span class="text-sm">Avoid merged cells in the data range.</span></div>
+          <div class="flex gap-2 items-start"><svg class="icon text-brand" aria-hidden="true"><use href="#icon-check-circle"></use></svg><span class="text-sm">Remove passwords or macros from workbooks.</span></div>
+        </div>
+      </div>
+    </section>
+  </aside>
+</div>
+{% endblock %}

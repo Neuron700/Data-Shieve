@@ -1,0 +1,81 @@
+{% extends "base_app.html" %}
+{% load humanize %}
+{% block title %}Confirm import · DataSieve{% endblock %}
+{% block breadcrumbs %}
+<a href="{% url 'projects:list' %}">Projects</a>
+<svg aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+<span>{{ pending.original_filename|truncatechars:36 }}</span>
+<svg aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+<span>Confirm</span>
+{% endblock %}
+{% block topbar_actions %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="eyebrow"><span class="pulse" aria-hidden="true"></span> One more choice</div>
+    <h1 class="page-title">Confirm the import</h1>
+    <p class="page-subtitle">DataSieve found a setting that needs your decision before it can import this file.</p>
+  </div>
+</div>
+
+<div class="split">
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Import settings</h2>
+        <p class="card-subtitle">The source file stays unchanged.</p>
+      </div>
+      <span class="badge badge-brand"><svg aria-hidden="true"><use href="#icon-file"></use></svg> {{ pending.file_format|upper }}</span>
+    </div>
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {{ form.token }}
+        {% if form.non_field_errors %}<div class="field-error-summary" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+
+        {% if pending.file_format == "xlsx" and sheet_names|length > 1 %}
+          <div class="field">
+            <label class="field-label" for="{{ form.sheet_name.id_for_label }}">Worksheet</label>
+            {{ form.sheet_name }}
+            <div class="field-help">This workbook contains {{ sheet_names|length }} sheets. Only the chosen sheet is imported.</div>
+            {% if form.sheet_name.errors %}<ul class="errorlist">{{ form.sheet_name.errors }}</ul>{% endif %}
+          </div>
+        {% endif %}
+
+        {% if pending.file_format == "csv" %}
+          <div class="field">
+            <label class="field-label" for="{{ form.delimiter.id_for_label }}">CSV delimiter</label>
+            {{ form.delimiter }}
+            <div class="field-help">{% if pending.delimiter_uncertain %}Auto-detection was uncertain. Choose the delimiter that matches this file.{% else %}Keep auto-detect unless you know the file uses a different delimiter.{% endif %}</div>
+            {% if form.delimiter.errors %}<ul class="errorlist">{{ form.delimiter.errors }}</ul>{% endif %}
+          </div>
+        {% endif %}
+
+        <div class="form-actions">
+          <a class="btn btn-secondary" href="{% url 'datasets:upload' pending.project_id %}">Upload a different file</a>
+          <button class="btn btn-primary" type="submit"><svg aria-hidden="true"><use href="#icon-check"></use></svg> Import and profile</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <aside class="stack">
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">File summary</h2></div>
+      <div class="card-body">
+        <div class="meta-grid" style="grid-template-columns:1fr">
+          <div class="kv-row"><span class="mini-label">File</span><span class="text-sm" style="text-align:right;overflow-wrap:anywhere">{{ pending.original_filename }}</span></div>
+          <div class="kv-row"><span class="mini-label">Size</span><span>{{ pending.size|filesizeformat }}</span></div>
+          <div class="kv-row"><span class="mini-label">Format</span><span>{{ pending.file_format|upper }}</span></div>
+          {% if pending.encoding %}<div class="kv-row"><span class="mini-label">Encoding</span><span class="mono">{{ pending.encoding }}</span></div>{% endif %}
+          {% if pending.sheet_names %}<div class="kv-row"><span class="mini-label">Sheets</span><span>{{ pending.sheet_names|length }}</span></div>{% endif %}
+        </div>
+      </div>
+    </section>
+    <div class="alert" style="margin-bottom:0">
+      <svg class="icon" aria-hidden="true"><use href="#icon-info"></use></svg>
+      <div>If you do not import this file, the temporary upload expires automatically. You can also upload a replacement.</div>
+    </div>
+  </aside>
+</div>
+{% endblock %}

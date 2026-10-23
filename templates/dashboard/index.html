@@ -1,0 +1,257 @@
+{% extends "base_app.html" %}
+{% load humanize ui_extras %}
+{% block title %}Overview · DataSieve{% endblock %}
+{% block breadcrumbs %}<span>Overview</span>{% endblock %}
+{% block topbar_actions %}
+  <a class="btn btn-secondary btn-sm" href="{% url 'datasets:list' %}">
+    <svg aria-hidden="true"><use href="#icon-database"></use></svg>
+    All datasets
+  </a>
+  <a class="btn btn-primary btn-sm" href="{% url 'projects:create' %}">
+    <svg aria-hidden="true"><use href="#icon-plus"></use></svg>
+    New project
+  </a>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="eyebrow"><span class="pulse" aria-hidden="true"></span> Live workspace</div>
+    <h1 class="page-title">Data quality overview</h1>
+    <p class="page-subtitle">What changed, what needs attention, and where your latest analyses stand.</p>
+  </div>
+</div>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-kicker"><span>Projects</span><svg aria-hidden="true"><use href="#icon-folder"></use></svg></div>
+    <div class="stat-value">{{ projects_count|intcomma }}</div>
+    <div class="stat-note">Group related datasets and cleaning history.</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-kicker"><span>Datasets</span><svg aria-hidden="true"><use href="#icon-database"></use></svg></div>
+    <div class="stat-value">{{ datasets_count|intcomma }}</div>
+    <div class="stat-note">{{ cleaned_versions_count|intcomma }} cleaned version{{ cleaned_versions_count|pluralize }} created.</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-kicker"><span>Analyses</span><svg aria-hidden="true"><use href="#icon-activity"></use></svg></div>
+    <div class="stat-value">{{ analyses_count|intcomma }}</div>
+    <div class="stat-note">Completed profiling and quality runs.</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-kicker"><span>Missing cells</span><svg aria-hidden="true"><use href="#icon-alert-triangle"></use></svg></div>
+    <div class="stat-value">{{ missing_cells|intcomma }}</div>
+    <div class="stat-note">Across the latest run of each dataset.</div>
+  </div>
+</div>
+
+<div class="split">
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Recent datasets</h2>
+        <p class="card-subtitle">Newest first. Open a dataset to inspect its profile and findings.</p>
+      </div>
+      <a class="btn btn-ghost btn-sm" href="{% url 'datasets:list' %}">View all <svg aria-hidden="true"><use href="#icon-arrow-right"></use></svg></a>
+    </div>
+    {% if latest_datasets %}
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr><th>File</th><th>Project</th><th>Size</th><th>Status</th><th>Added</th></tr>
+          </thead>
+          <tbody>
+            {% for dataset in latest_datasets %}
+              <tr>
+                <td>
+                  <a class="inline-flex items-center gap-2 font-semibold" href="{% url 'datasets:detail' dataset.pk %}">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-{% if dataset.file_format == 'xlsx' %}file-spreadsheet{% else %}file-text{% endif %}"></use></svg>
+                    {{ dataset.original_filename|truncatechars:46 }}
+                  </a>
+                </td>
+                <td><a class="text-brand" href="{% url 'projects:detail' dataset.project_id %}">{{ dataset.project.name|truncatechars:24 }}</a></td>
+                <td class="num">{{ dataset.row_count|intcomma }} × {{ dataset.column_count }}</td>
+                <td><span class="badge badge-{{ dataset.status|status_tone }}">{{ dataset.get_status_display }}</span></td>
+                <td><span class="search-results-meta">{{ dataset.created_at|naturaltime }}</span></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-icon"><svg aria-hidden="true"><use href="#icon-upload"></use></svg></div>
+        <h3>No datasets yet</h3>
+        <p>Create a project, then upload a CSV or XLSX file to run the first profile.</p>
+        <a class="btn btn-primary" href="{% url 'projects:create' %}">Create a project</a>
+      </div>
+    {% endif %}
+  </section>
+
+  <aside class="stack">
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">Quality profile</h2>
+          <p class="card-subtitle">Latest completed run per dataset.</p>
+        </div>
+        <span class="badge badge-neutral">{{ scored_datasets }} scored</span>
+      </div>
+      <div class="card-body">
+        {% if scored_datasets %}
+          {% for label, count in score_counts.items %}
+            <div class="mb-3">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-sm font-medium">{{ label }}</span>
+                <span class="mono text-muted">{{ count|intcomma }}</span>
+              </div>
+              <div class="progress {% if label == 'Poor' %}danger{% elif label == 'Needs Review' %}warn{% endif %}">
+                <span style="width: {{ count|share_of:scored_datasets }}%"></span>
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-inline">Run an analysis to populate the score profile.</div>
+        {% endif %}
+        <div class="grid grid-2" style="margin-top:16px">
+          <div class="metric-tile">
+            <div class="metric-label">Duplicate rows</div>
+            <div class="metric-value">{{ duplicate_rows|intcomma }}</div>
+          </div>
+          <div class="metric-tile">
+            <div class="metric-label">Missing cells</div>
+            <div class="metric-value">{{ missing_cells|intcomma }}</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2 class="card-title">Columns to inspect</h2>
+      </div>
+      <div class="card-body">
+        {% if top_issue_columns %}
+          <div class="stack">
+            {% for row in top_issue_columns %}
+              <div class="flex items-center justify-between gap-3">
+                <span class="truncate text-sm">{{ row.column_name }}</span>
+                <span class="badge badge-warning">{{ row.findings }} finding{{ row.findings|pluralize }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-inline">No column-level findings in the latest analyses.</div>
+        {% endif %}
+      </div>
+    </section>
+  </aside>
+</div>
+
+<div class="grid grid-2" style="margin-top:18px">
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Latest analyses</h2>
+        <p class="card-subtitle">Completed runs across your workspace.</p>
+      </div>
+    </div>
+    {% if latest_analyses %}
+      <div class="table-wrap">
+        <table class="data-table">
+          <tbody>
+            {% for run in latest_analyses %}
+              <tr>
+                <td>
+                  <a class="font-semibold" href="{% url 'profiling:overview' run.dataset_version.dataset_id %}?version={{ run.dataset_version_id }}&analysis={{ run.pk }}">
+                    {{ run.dataset_version.dataset.original_filename|truncatechars:34 }}
+                  </a>
+                  <div class="search-results-meta">{{ run.dataset_version.dataset.project.name }} · {{ run.dataset_version.label }}</div>
+                </td>
+                <td class="num">
+                  {% with score=run.summary.score.score category=run.summary.score.category %}
+                    {% if score is not None %}
+                      <span class="score-pill score-{{ score|score_tone }}">{{ score }}<small>{{ category }}</small></span>
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
+                  {% endwith %}
+                </td>
+                <td><span class="search-results-meta">{{ run.started_at|naturaltime }}</span></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-inline">No completed analyses yet.</div>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">Recent cleaning</h2>
+        <p class="card-subtitle">Previews and applied versions.</p>
+      </div>
+      <a class="btn btn-ghost btn-sm" href="{% url 'datasets:list' %}">Datasets <svg aria-hidden="true"><use href="#icon-arrow-right"></use></svg></a>
+    </div>
+    {% if recent_jobs %}
+      <div class="table-wrap">
+        <table class="data-table">
+          <tbody>
+            {% for job in recent_jobs %}
+              <tr>
+                <td>
+                  <a class="font-semibold" href="{% url 'cleaning:preview' job.pk %}">{{ job.operation_config.operation|token_label }}</a>
+                  <div class="search-results-meta">{{ job.dataset.original_filename|truncatechars:32 }} · {{ job.created_at|naturaltime }}</div>
+                </td>
+                <td><span class="badge badge-{{ job.status|status_tone }}">{{ job.get_status_display }}</span></td>
+                <td class="num">
+                  {% if job.output_version %}
+                    <a class="text-brand" href="{% url 'datasets:detail' job.dataset_id %}?version={{ job.output_version_id }}">v{{ job.output_version.version_number }}</a>
+                  {% else %}—{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-inline">Cleaning previews will appear here.</div>
+    {% endif %}
+  </section>
+</div>
+
+<section class="card" style="margin-top:18px">
+  <div class="card-head">
+    <div>
+      <h2 class="card-title">Audit trail</h2>
+      <p class="card-subtitle">Account and dataset actions recorded without raw cell values.</p>
+    </div>
+  </div>
+  {% if recent_audit %}
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Action</th><th>Dataset</th><th>When</th></tr></thead>
+        <tbody>
+          {% for event in recent_audit %}
+            <tr>
+              <td class="font-medium">{{ event.action|token_label }}</td>
+              <td>
+                {% if event.dataset %}
+                  <a class="text-brand" href="{% url 'datasets:detail' event.dataset_id %}">{{ event.dataset.original_filename|truncatechars:38 }}</a>
+                {% else %}
+                  <span class="text-muted">Workspace</span>
+                {% endif %}
+              </td>
+              <td><span class="search-results-meta">{{ event.created_at|naturaltime }}</span></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-inline">No account activity yet.</div>
+  {% endif %}
+</section>
+{% endblock %}

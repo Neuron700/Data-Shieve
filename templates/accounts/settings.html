@@ -1,0 +1,96 @@
+{% extends "base_app.html" %}
+{% load humanize ui_extras %}
+{% block title %}Account settings · DataSieve{% endblock %}
+{% block breadcrumbs %}
+<a href="{% url 'projects:dashboard' %}">Workspace</a>
+<svg aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+<span>Account settings</span>
+{% endblock %}
+{% block topbar_actions %}
+<span class="badge badge-neutral"><svg aria-hidden="true"><use href="#icon-lock"></use></svg> Private account</span>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Account settings</h1>
+    <p class="page-subtitle">Update your profile, review workspace totals, and manage your password.</p>
+  </div>
+</div>
+
+<div class="split">
+  <div class="stack">
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">Profile</h2>
+          <p class="card-subtitle">Used across your workspace and owner-only dataset records.</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <div class="field-row">
+            {% include "partials/form_field.html" with field=form.first_name %}
+            {% include "partials/form_field.html" with field=form.last_name %}
+          </div>
+          {% include "partials/form_field.html" with field=form.email %}
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Save profile</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">Password</h2>
+          <p class="card-subtitle">Changing your password signs out other active sessions.</p>
+        </div>
+        <a class="btn btn-secondary btn-sm" href="{% url 'accounts:password_change' %}">
+          <svg aria-hidden="true"><use href="#icon-lock"></use></svg>
+          Change password
+        </a>
+      </div>
+    </section>
+  </div>
+
+  <aside class="stack">
+    <section class="card">
+      <div class="card-head">
+        <h2 class="card-title">Workspace summary</h2>
+      </div>
+      <div class="card-body">
+        <div class="stat-grid" style="grid-template-columns:1fr 1fr;margin-bottom:0">
+          <div class="metric-tile">
+            <div class="metric-label">Datasets</div>
+            <div class="metric-value">{{ dataset_summary.total|default:0|intcomma }}</div>
+          </div>
+          <div class="metric-tile">
+            <div class="metric-label">Rows stored</div>
+            <div class="metric-value">{{ dataset_summary.rows|default:0|intcomma }}</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2 class="card-title">Account</h2>
+      </div>
+      <div class="card-body">
+        <div class="meta-grid" style="grid-template-columns:1fr">
+          <div class="kv-row"><span class="mini-label">Username</span><span class="mono">{{ user.username }}</span></div>
+          <div class="kv-row"><span class="mini-label">Email</span><span>{{ user.email|default:"Not set" }}</span></div>
+          <div class="kv-row"><span class="mini-label">Joined</span><span>{{ user.date_joined|naturalday }}</span></div>
+          <div class="kv-row"><span class="mini-label">Last sign-in</span><span>{{ user.last_login|naturaltime|default:"First session" }}</span></div>
+        </div>
+        <div class="form-note">
+          <svg aria-hidden="true"><use href="#icon-shield"></use></svg>
+          <span>Account data is never shared between users. Every project and dataset query is filtered by owner.</span>
+        </div>
+      </div>
+    </section>
+  </aside>
+</div>
+{% endblock %}

@@ -1,0 +1,201 @@
+{% extends "base_app.html" %}
+{% load humanize ui_extras %}
+{% block title %}{{ project.name }} · DataSieve{% endblock %}
+{% block breadcrumbs %}
+<a class="hide-mobile" href="{% url 'projects:list' %}">Projects</a>
+<svg class="hide-mobile" aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+<span>{{ project.name|truncatechars:44 }}</span>
+{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-secondary btn-sm" href="{% url 'projects:edit' project.pk %}">
+  <svg aria-hidden="true"><use href="#icon-edit"></use></svg>
+  Edit
+</a>
+<a class="btn btn-primary btn-sm" href="{% url 'datasets:upload' project.pk %}">
+  <svg aria-hidden="true"><use href="#icon-upload"></use></svg>
+  Upload dataset
+</a>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="eyebrow"><span class="pulse" aria-hidden="true"></span> Project</div>
+    <h1 class="page-title">{{ project.name }}</h1>
+    <p class="page-subtitle">{% if project.description %}{{ project.description }}{% else %}No description yet. Edit the project to add context for this group of datasets.{% endif %}</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-secondary" href="{% url 'datasets:list' %}?project={{ project.pk }}">Open in dataset list</a>
+    <a class="btn btn-ghost" href="{% url 'projects:delete' project.pk %}">Delete</a>
+  </div>
+</div>
+
+<div class="grid grid-3" style="margin-bottom:18px">
+  <div class="stat-card">
+    <div class="stat-kicker"><span>Datasets</span><svg aria-hidden="true"><use href="#icon-database"></use></svg></div>
+    <div class="stat-value">{{ page.paginator.count|intcomma }}</div>
+    <div class="stat-note">Matching the current filters.</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-kicker"><span>Recent analyses</span><svg aria-hidden="true"><use href="#icon-activity"></use></svg></div>
+    <div class="stat-value">{{ recent_runs|length }}</div>
+    <div class="stat-note">Shown in the activity panel below.</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-kicker"><span>Cleaning jobs</span><svg aria-hidden="true"><use href="#icon-wand"></use></svg></div>
+    <div class="stat-value">{{ recent_jobs|length }}</div>
+    <div class="stat-note">Latest previews and applied versions.</div>
+  </div>
+</div>
+
+<div class="split">
+  <div class="stack">
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">Datasets</h2>
+          <p class="card-subtitle">Filter by file name, status, or upload date.</p>
+        </div>
+      </div>
+      <div class="card-body" style="padding-bottom:14px">
+        <form method="get" class="grid filter-grid">
+          <div class="field" style="margin:0">
+            <label class="field-label" for="dataset-search">File name</label>
+            <input class="input" id="dataset-search" type="search" name="q" value="{{ query }}" placeholder="Search files">
+          </div>
+          <div class="field" style="margin:0">
+            <label class="field-label" for="dataset-status">Status</label>
+            <select class="select" id="dataset-status" name="status">
+              <option value="">All statuses</option>
+              {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field" style="margin:0">
+            <label class="field-label" for="date-from">From</label>
+            <input class="input" id="date-from" type="date" name="date_from" value="{{ date_from }}">
+          </div>
+          <div class="field" style="margin:0">
+            <label class="field-label" for="date-to">To</label>
+            <input class="input" id="date-to" type="date" name="date_to" value="{{ date_to }}">
+          </div>
+          <div class="action-group">
+            <button class="btn btn-secondary" type="submit">Filter</button>
+            {% if query or status or date_from or date_to %}<a class="btn btn-ghost" href="{% url 'projects:detail' project.pk %}">Clear</a>{% endif %}
+          </div>
+        </form>
+      </div>
+
+      {% if page.object_list %}
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>File</th><th>Rows × cols</th><th>Score</th><th>Status</th><th>Added</th><th></th></tr>
+            </thead>
+            <tbody>
+              {% for dataset in page.object_list %}
+                <tr>
+                  <td>
+                    <a class="flex items-center gap-2 font-semibold" href="{% url 'datasets:detail' dataset.pk %}">
+                      <svg class="icon" aria-hidden="true"><use href="#icon-{% if dataset.file_format == 'xlsx' %}file-spreadsheet{% else %}file-text{% endif %}"></use></svg>
+                      <span class="truncate" style="max-width:260px">{{ dataset.original_filename }}</span>
+                    </a>
+                  </td>
+                  <td class="num">{{ dataset.row_count|intcomma }} × {{ dataset.column_count }}</td>
+                  <td>
+                    {% with run=dataset.latest_analysis_for_card %}
+                      {% if run %}
+                        {% with score=run.summary.score.score %}
+                          {% if score is not None %}
+                            <span class="score-pill score-{{ score|score_tone }}">{{ score }}<small>{{ run.summary.score.category }}</small></span>
+                          {% else %}<span class="text-muted">—</span>{% endif %}
+                        {% endwith %}
+                      {% else %}
+                        <span class="text-muted">Not analysed</span>
+                      {% endif %}
+                    {% endwith %}
+                  </td>
+                  <td><span class="badge badge-{{ dataset.status|status_tone }}">{{ dataset.get_status_display }}</span></td>
+                  <td><span class="search-results-meta">{{ dataset.created_at|date:"M j, Y" }}</span></td>
+                  <td class="num">
+                    <a class="btn btn-ghost btn-sm" href="{% url 'datasets:detail' dataset.pk %}">Open</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% include "partials/pagination.html" %}
+      {% elif query or status or date_from or date_to %}
+        <div class="empty-state">
+          <div class="empty-icon"><svg aria-hidden="true"><use href="#icon-search"></use></svg></div>
+          <h3>No datasets match these filters</h3>
+          <p>Adjust the file name, status, or date range and run the filter again.</p>
+          <a class="btn btn-secondary" href="{% url 'projects:detail' project.pk %}">Clear filters</a>
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-icon"><svg aria-hidden="true"><use href="#icon-upload"></use></svg></div>
+          <h3>No datasets in this project</h3>
+          <p>Upload a CSV or XLSX file. DataSieve will profile it and run the quality rules immediately.</p>
+          <a class="btn btn-primary" href="{% url 'datasets:upload' project.pk %}"><svg aria-hidden="true"><use href="#icon-upload"></use></svg> Upload dataset</a>
+        </div>
+      {% endif %}
+    </section>
+  </div>
+
+  <aside class="stack">
+    <section class="card">
+      <div class="card-head">
+        <h2 class="card-title">Recent analyses</h2>
+      </div>
+      <div class="card-body">
+        {% if recent_runs %}
+          <div class="stack">
+            {% for run in recent_runs %}
+              <a class="analysis-row" href="{% url 'profiling:overview' run.dataset_version.dataset_id %}?version={{ run.dataset_version_id }}&analysis={{ run.pk }}">
+                <div style="min-width:0">
+                  <div class="truncate font-medium">{{ run.dataset_version.dataset.original_filename|truncatechars:30 }}</div>
+                  <div class="meta">{{ run.dataset_version.label }} · {{ run.started_at|naturaltime }}</div>
+                </div>
+                {% with score=run.summary.score.score %}
+                  {% if score is not None %}
+                    <span class="score-pill score-{{ score|score_tone }}">{{ score }}</span>
+                  {% else %}
+                    <span class="badge badge-{{ run.status|status_tone }}">{{ run.get_status_display }}</span>
+                  {% endif %}
+                {% endwith %}
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-inline">No completed analyses in this project.</div>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2 class="card-title">Cleaning jobs</h2>
+      </div>
+      <div class="card-body">
+        {% if recent_jobs %}
+          <div class="stack">
+            {% for job in recent_jobs %}
+              <a class="analysis-row" href="{% url 'cleaning:preview' job.pk %}">
+                <div style="min-width:0">
+                  <div class="truncate font-medium">{{ job.operation_config.operation|token_label }}</div>
+                  <div class="meta">{{ job.dataset.original_filename|truncatechars:28 }} · {{ job.created_at|naturaltime }}</div>
+                </div>
+                <span class="badge badge-{{ job.status|status_tone }}">{{ job.get_status_display }}</span>
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-inline">No cleaning jobs yet.</div>
+        {% endif %}
+      </div>
+    </section>
+  </aside>
+</div>
+{% endblock %}

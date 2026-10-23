@@ -1,0 +1,52 @@
+{% extends "base_app.html" %}
+{% block title %}{{ page_title }} · DataSieve{% endblock %}
+{% block breadcrumbs %}
+<a href="{% url 'projects:list' %}">Projects</a>
+<svg aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+{% if project %}<a href="{% url 'projects:detail' project.pk %}">{{ project.name|truncatechars:34 }}</a><svg aria-hidden="true"><use href="#icon-chevron-right"></use></svg><span>Edit</span>{% else %}<span>New project</span>{% endif %}
+{% endblock %}
+{% block topbar_actions %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">{{ page_title }}</h1>
+    <p class="page-subtitle">{% if project %}Rename the project or refine the context your team will see.{% else %}Give this group of datasets a clear name and purpose.{% endif %}</p>
+  </div>
+</div>
+
+<div class="split">
+  <section class="card">
+    <div class="card-head">
+      <h2 class="card-title">Project details</h2>
+    </div>
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="field-error-summary" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+        {% include "partials/form_field.html" with field=form.name %}
+        {% include "partials/form_field.html" with field=form.description %}
+        <div class="form-actions">
+          {% if project %}
+            <a class="btn btn-danger-soft" href="{% url 'projects:delete' project.pk %}">Delete project</a>
+          {% endif %}
+          <a class="btn btn-secondary" href="{% if project %}{% url 'projects:detail' project.pk %}{% else %}{% url 'projects:list' %}{% endif %}">Cancel</a>
+          <button class="btn btn-primary" type="submit">{% if project %}Save changes{% else %}Create project{% endif %}</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <aside class="stack">
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">What belongs in a project?</h2></div>
+      <div class="card-body">
+        <div class="stack">
+          <div class="flex gap-2 items-start"><svg class="icon text-brand" aria-hidden="true"><use href="#icon-database"></use></svg><div><strong class="text-sm">Related datasets</strong><p class="search-results-meta">Files that share a source system, period, or analysis question.</p></div></div>
+          <div class="flex gap-2 items-start"><svg class="icon text-brand" aria-hidden="true"><use href="#icon-layers"></use></svg><div><strong class="text-sm">Version history</strong><p class="search-results-meta">Original and cleaned versions stay linked to the dataset.</p></div></div>
+          <div class="flex gap-2 items-start"><svg class="icon text-brand" aria-hidden="true"><use href="#icon-shield"></use></svg><div><strong class="text-sm">Owner-only access</strong><p class="search-results-meta">Only you can open the project and its private files.</p></div></div>
+        </div>
+      </div>
+    </section>
+  </aside>
+</div>
+{% endblock %}

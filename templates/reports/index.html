@@ -1,0 +1,134 @@
+{% extends "base_app.html" %}
+{% load humanize ui_extras %}
+{% block title %}Reports · {{ dataset.original_filename }}{% endblock %}
+{% block breadcrumbs %}
+<a href="{% url 'datasets:detail' dataset.pk %}">{{ dataset.original_filename|truncatechars:32 }}</a>
+<svg aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+<span>Reports</span>
+{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-secondary btn-sm" href="{% url 'datasets:detail' dataset.pk %}?version={{ version.pk }}"><svg aria-hidden="true"><use href="#icon-arrow-left"></use></svg> Dataset</a>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Export and reports</h1>
+    <p class="page-subtitle">{{ dataset.original_filename }} · v{{ version.version_number }}. Download data or a report for this version.</p>
+  </div>
+  <div class="page-actions">
+    <form class="version-picker" method="get">
+      <label class="mini-label" for="report-version">Version</label>
+      <select class="select" id="report-version" name="version" style="width:auto;min-width:200px" data-auto-submit>
+        {% for item in versions %}
+          <option value="{{ item.pk }}" {% if item.pk == version.pk %}selected{% endif %}>{{ item.label }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-secondary btn-sm" type="submit">Switch</button>
+    </form>
+  </div>
+</div>
+
+<div class="grid grid-3" style="margin-bottom:18px">
+  <div class="stat-card">
+    <div class="stat-kicker"><span>Current version</span><svg aria-hidden="true"><use href="#icon-layers"></use></svg></div>
+    <div class="stat-value">v{{ version.version_number }}</div>
+    <div class="stat-note">{{ version.get_version_type_display }} · {{ version.row_count|intcomma }} rows.</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-kicker"><span>Quality analysis</span><svg aria-hidden="true"><use href="#icon-shield"></use></svg></div>
+    <div class="stat-value">{% if analysis %}{{ analysis.summary.score.score|default:"—" }}{% else %}—{% endif %}</div>
+    <div class="stat-note">{% if analysis %}Completed {{ analysis.completed_at|naturaltime }}.{% else %}Not available for this version.{% endif %}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-kicker"><span>Export formats</span><svg aria-hidden="true"><use href="#icon-download"></use></svg></div>
+    <div class="stat-value">6</div>
+    <div class="stat-note">Data, profile, quality, and cleaning history.</div>
+  </div>
+</div>
+
+{% if not analysis %}
+  <div class="alert">
+    <svg class="icon" aria-hidden="true"><use href="#icon-info"></use></svg>
+    <div>Profile and quality reports require a completed analysis. <a class="font-semibold" href="{% url 'datasets:detail' dataset.pk %}?version={{ version.pk }}">Run the analysis first</a>.</div>
+  </div>
+{% endif %}
+
+<div class="grid grid-2">
+  <section class="card">
+    <div class="card-head">
+      <div class="flex items-center gap-2">
+        <span class="file-glyph" style="width:34px;height:34px"><svg aria-hidden="true"><use href="#icon-file-spreadsheet"></use></svg></span>
+        <div><h2 class="card-title">Dataset data</h2><p class="card-subtitle">The current version, not a report.</p></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="stack">
+        <div class="flex items-center justify-between gap-3">
+          <div><strong class="text-sm">CSV</strong><p class="search-results-meta">UTF-8 with BOM for spreadsheet compatibility.</p></div>
+          <a class="btn btn-secondary btn-sm" href="{% url 'reports:export_version' dataset.pk 'csv' %}?version={{ version.pk }}"><svg aria-hidden="true"><use href="#icon-download"></use></svg> Download</a>
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <div><strong class="text-sm">XLSX</strong><p class="search-results-meta">Workbook with a version-labelled sheet.</p></div>
+          <a class="btn btn-secondary btn-sm" href="{% url 'reports:export_version' dataset.pk 'xlsx' %}?version={{ version.pk }}"><svg aria-hidden="true"><use href="#icon-download"></use></svg> Download</a>
+        </div>
+      </div>
+      <div class="form-note"><svg aria-hidden="true"><use href="#icon-shield"></use></svg><span>Exported text values that begin with a formula character are prefixed so spreadsheets do not evaluate them as formulas.</span></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <div class="flex items-center gap-2">
+        <span class="file-glyph" style="width:34px;height:34px"><svg aria-hidden="true"><use href="#icon-file-code"></use></svg></span>
+        <div><h2 class="card-title">Profile report</h2><p class="card-subtitle">Machine-readable column metadata.</p></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="stack">
+        <div class="flex items-center justify-between gap-3">
+          <div><strong class="text-sm">JSON</strong><p class="search-results-meta">Row metrics, column types, statistics, patterns, and score.</p></div>
+          {% if analysis %}<a class="btn btn-secondary btn-sm" href="{% url 'reports:profile_json' dataset.pk %}?version={{ version.pk }}"><svg aria-hidden="true"><use href="#icon-download"></use></svg> Download</a>{% else %}<span class="badge badge-neutral">No analysis</span>{% endif %}
+        </div>
+      </div>
+      <div class="form-note"><svg aria-hidden="true"><use href="#icon-info"></use></svg><span>Reports do not include raw cell values. They contain counts, types, statistics, and finding explanations.</span></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <div class="flex items-center gap-2">
+        <span class="file-glyph" style="width:34px;height:34px"><svg aria-hidden="true"><use href="#icon-shield"></use></svg></span>
+        <div><h2 class="card-title">Quality report</h2><p class="card-subtitle">Findings, severity, score, and formula metadata.</p></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="stack">
+        <div class="flex items-center justify-between gap-3">
+          <div><strong class="text-sm">JSON</strong><p class="search-results-meta">Structured report for downstream processing.</p></div>
+          {% if analysis %}<a class="btn btn-secondary btn-sm" href="{% url 'reports:quality' dataset.pk 'json' %}?version={{ version.pk }}"><svg aria-hidden="true"><use href="#icon-download"></use></svg> Download</a>{% else %}<span class="badge badge-neutral">No analysis</span>{% endif %}
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <div><strong class="text-sm">CSV</strong><p class="search-results-meta">One row per finding, suitable for a review tracker.</p></div>
+          {% if analysis %}<a class="btn btn-secondary btn-sm" href="{% url 'reports:quality' dataset.pk 'csv' %}?version={{ version.pk }}"><svg aria-hidden="true"><use href="#icon-download"></use></svg> Download</a>{% else %}<span class="badge badge-neutral">No analysis</span>{% endif %}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <div class="flex items-center gap-2">
+        <span class="file-glyph" style="width:34px;height:34px"><svg aria-hidden="true"><use href="#icon-wand"></use></svg></span>
+        <div><h2 class="card-title">Cleaning summary</h2><p class="card-subtitle">A readable record of cleaning decisions.</p></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="flex items-center justify-between gap-3">
+        <div><strong class="text-sm">Markdown</strong><p class="search-results-meta">Jobs, operations, source/output versions, impact, and warnings.</p></div>
+        <a class="btn btn-secondary btn-sm" href="{% url 'reports:cleaning_markdown' dataset.pk %}"><svg aria-hidden="true"><use href="#icon-download"></use></svg> Download</a>
+      </div>
+      <div class="form-note"><svg aria-hidden="true"><use href="#icon-lock"></use></svg><span>Cleaning summaries contain configuration and impact counts, never raw cell values.</span></div>
+    </div>
+  </section>
+</div>
+{% endblock %}

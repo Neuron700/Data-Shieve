@@ -1,0 +1,39 @@
+{% if messages %}
+<div class="toast-stack" id="toast-stack" aria-live="polite">
+  {% for message in messages %}
+    {% if message.tags == "success" %}
+      {% with tone="success" icon="icon-check-circle" %}
+        <div class="toast toast-{{ tone }}" role="status" data-toast>
+          <svg class="icon" aria-hidden="true"><use href="#{{ icon }}"></use></svg>
+          <div>{{ message }}</div>
+          <button type="button" aria-label="Dismiss notification" data-dismiss-toast><svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg></button>
+        </div>
+      {% endwith %}
+    {% elif message.tags == "error" or message.tags == "danger" %}
+      {% with tone="error" icon="icon-alert-circle" %}
+        <div class="toast toast-{{ tone }}" role="alert" data-toast>
+          <svg class="icon" aria-hidden="true"><use href="#{{ icon }}"></use></svg>
+          <div>{{ message }}</div>
+          <button type="button" aria-label="Dismiss notification" data-dismiss-toast><svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg></button>
+        </div>
+      {% endwith %}
+    {% elif message.tags == "warning" %}
+      {% with tone="warning" icon="icon-alert-triangle" %}
+        <div class="toast toast-{{ tone }}" role="status" data-toast>
+          <svg class="icon" aria-hidden="true"><use href="#{{ icon }}"></use></svg>
+          <div>{{ message }}</div>
+          <button type="button" aria-label="Dismiss notification" data-dismiss-toast><svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg></button>
+        </div>
+      {% endwith %}
+    {% else %}
+      {% with tone="info" icon="icon-info" %}
+        <div class="toast toast-{{ tone }}" role="status" data-toast>
+          <svg class="icon" aria-hidden="true"><use href="#{{ icon }}"></use></svg>
+          <div>{{ message }}</div>
+          <button type="button" aria-label="Dismiss notification" data-dismiss-toast><svg class="icon" aria-hidden="true"><use href="#icon-x"></use></svg></button>
+        </div>
+      {% endwith %}
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}

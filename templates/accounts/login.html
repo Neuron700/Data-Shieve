@@ -1,0 +1,22 @@
+{% extends "base_auth.html" %}
+{% block title %}Sign in · DataSieve{% endblock %}
+{% block auth_content %}
+<h1 class="auth-title">Welcome back</h1>
+<p class="auth-subtitle">Sign in to continue to your datasets and cleaning history.</p>
+<div class="auth-panel-box">
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="field-error-summary" role="alert">{{ form.non_field_errors }}</div>
+    {% endif %}
+    {% include "partials/form_field.html" with field=form.username %}
+    {% include "partials/form_field.html" with field=form.password %}
+    {% if request.GET.next %}<input type="hidden" name="next" value="{{ request.GET.next }}">{% endif %}
+    <button class="btn btn-primary btn-lg" type="submit" style="width:100%">
+      Sign in
+      <svg aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+    </button>
+  </form>
+</div>
+<p class="auth-alt">New to DataSieve? <a href="{% url 'accounts:signup' %}">Create an account</a></p>
+{% endblock %}

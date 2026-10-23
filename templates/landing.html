@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}DataSieve · Know what is in your data{% endblock %}
+{% block body_class %}landing{% endblock %}
+{% block body %}
+<nav class="landing-nav" aria-label="Main navigation">
+  <a class="brand" href="{% url 'projects:home' %}">
+    <span class="brand-mark"><svg aria-hidden="true"><use href="#icon-logo"></use></svg></span>
+    <span>DataSieve<small>Data quality workspace</small></span>
+  </a>
+  <div class="landing-links">
+    <a href="#workflow">Workflow</a>
+    <a href="#checks">Checks</a>
+    <a href="{% url 'quality:rules' %}">Rulebook</a>
+  </div>
+  <div class="action-group">
+    {% if user.is_authenticated %}
+      <a class="btn btn-secondary btn-sm" href="{% url 'projects:dashboard' %}">Open workspace</a>
+    {% else %}
+      <a class="btn btn-ghost btn-sm" href="{% url 'accounts:login' %}">Sign in</a>
+      <a class="btn btn-primary btn-sm" href="{% url 'accounts:signup' %}">Create account</a>
+    {% endif %}
+  </div>
+</nav>
+
+<header class="hero">
+  <div>
+    <div class="eyebrow"><span class="pulse" aria-hidden="true"></span> Local-first data quality</div>
+    <h1>Clean data starts with knowing what is <em>broken.</em></h1>
+    <p class="lead">
+      DataSieve reads CSV and XLSX files, profiles every column, runs ten deterministic
+      quality rules, and creates cleaned versions without changing the original.
+    </p>
+    <div class="hero-actions">
+      {% if user.is_authenticated %}
+        <a class="btn btn-primary btn-lg" href="{% url 'projects:dashboard' %}">
+          Go to overview
+          <svg aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+        </a>
+        <a class="btn btn-secondary btn-lg" href="{% url 'projects:create' %}">Start a project</a>
+      {% else %}
+        <a class="btn btn-primary btn-lg" href="{% url 'accounts:signup' %}">
+          Start cleaning
+          <svg aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+        </a>
+        <a class="btn btn-secondary btn-lg" href="{% url 'accounts:login' %}">Sign in</a>
+      {% endif %}
+    </div>
+    <div class="hero-note">
+      <svg aria-hidden="true"><use href="#icon-lock"></use></svg>
+      Files stay in private storage. No third-party profiling service.
+    </div>
+  </div>
+
+  <div class="hero-visual">
+    <div class="hero-glow" aria-hidden="true"></div>
+    <div class="hero-window">
+      <div class="window-bar">
+        <i></i><i></i><i></i>
+        <span class="window-label">quality-report / ruleset-1.0</span>
+      </div>
+      <div class="visual-body">
+        <div class="visual-head">
+          <div>
+            <div class="visual-title">Deterministic checks</div>
+            <div class="visual-sub">Every finding includes a count, row positions, and a recommendation.</div>
+          </div>
+          <span class="badge badge-brand">Ruleset 1.0</span>
+        </div>
+        <div class="visual-stats">
+          <div class="visual-stat"><span>Rules</span><strong>{{ public_stats.rules }}</strong></div>
+          <div class="visual-stat"><span>Preview rows</span><strong>{{ public_stats.preview_rows }}</strong></div>
+          <div class="visual-stat"><span>Upload cap</span><strong>{{ public_stats.upload_mb }} MB</strong></div>
+        </div>
+        <div class="visual-rows">
+          <div class="visual-row head"><span>Rule</span><span>Scope</span><span>Output</span></div>
+          <div class="visual-row"><span>DS001 Missing values</span><span>Per column</span><span class="warn">Count + rows</span></div>
+          <div class="visual-row"><span>DS002 Duplicate rows</span><span>Whole table</span><span class="warn">Count + rows</span></div>
+          <div class="visual-row"><span>DS005 Inconsistent types</span><span>Per column</span><span class="warn">Count + rows</span></div>
+          <div class="visual-row"><span>DS009 Sensitive data</span><span>Pattern scan</span><span class="warn">Redacted sample</span></div>
+          <div class="visual-row"><span>DS010 Constant columns</span><span>Per column</span><span class="ok">Signal check</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="hero-badge">
+      <span class="shield"><svg aria-hidden="true"><use href="#icon-shield"></use></svg></span>
+      <div><strong>Original version kept</strong><span>Cleaning writes a new version</span></div>
+    </div>
+  </div>
+</header>
+
+<section class="trust-strip" aria-label="Safety properties">
+  <div class="trust-inner">
+    <span class="trust-item"><svg aria-hidden="true"><use href="#icon-lock"></use></svg> Owner-only access</span>
+    <span class="trust-item"><svg aria-hidden="true"><use href="#icon-file"></use></svg> Immutable source files</span>
+    <span class="trust-item"><svg aria-hidden="true"><use href="#icon-eye"></use></svg> Sensitive previews redacted</span>
+    <span class="trust-item"><svg aria-hidden="true"><use href="#icon-check-circle"></use></svg> No automatic data deletion</span>
+  </div>
+</section>
+
+<section class="landing-section" id="workflow">
+  <div class="section-kicker">Workflow</div>
+  <h2 class="section-title">From raw file to a version you can explain.</h2>
+  <p class="section-sub">Every step is explicit. Preview changes before they are written, and keep a trace of what was applied.</p>
+  <div class="flow">
+    <div class="flow-step">
+      <div class="flow-num">01</div>
+      <h3>Upload</h3>
+      <p>Choose a CSV or XLSX file. DataSieve detects the format, delimiter, encoding, and workbook sheets.</p>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">02</div>
+      <h3>Profile</h3>
+      <p>Inspect row and column counts, types, missing values, uniqueness, distributions, and inferred patterns.</p>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">03</div>
+      <h3>Review findings</h3>
+      <p>Work through rule-level findings with severity, affected rows, explanations, and recommended next steps.</p>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">04</div>
+      <h3>Clean &amp; export</h3>
+      <p>Preview a cleaning operation, apply it to a new version, then export the data or a quality report.</p>
+    </div>
+  </div>
+</section>
+
+<section class="landing-section" id="checks">
+  <div class="section-kicker">Quality checks</div>
+  <h2 class="section-title">Transparent rules, not a black-box score.</h2>
+  <p class="section-sub">The score is traceable to the findings that reduced it. Potential outliers are reported without silently penalising the score.</p>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="feature-icon"><svg aria-hidden="true"><use href="#icon-shield"></use></svg></div>
+      <h3>Ten structural checks</h3>
+      <p>Missing values, duplicates, duplicate headers, whitespace, mixed types, category variants, date formats, outliers, sensitive patterns, and constant columns.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon"><svg aria-hidden="true"><use href="#icon-layers"></use></svg></div>
+      <h3>Versioned cleaning</h3>
+      <p>Each cleaning job previews row and cell impact first. Applied changes become a new version with the source left intact.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon"><svg aria-hidden="true"><use href="#icon-lock"></use></svg></div>
+      <h3>Privacy guardrails</h3>
+      <p>Column values are redacted in previews when names or patterns suggest emails, phones, identifiers, or other personal data.</p>
+    </div>
+  </div>
+</section>
+
+<section class="landing-cta">
+  <div class="cta-panel">
+    <div>
+      <h2>Read the rulebook before the first upload.</h2>
+      <p>Definitions, severities, score weights, and limitations are published in the app.</p>
+    </div>
+    <div class="action-group">
+      <a class="btn btn-secondary" href="{% url 'quality:rules' %}">View quality rules</a>
+      {% if not user.is_authenticated %}
+        <a class="btn btn-primary" href="{% url 'accounts:signup' %}">Create account</a>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<footer class="landing-footer">
+  <span>DataSieve · deterministic data quality workspace</span>
+  <div class="action-group">
+    <a href="{% url 'quality:rules' %}">Rulebook</a>
+    <a href="{% url 'accounts:login' %}">Sign in</a>
+  </div>
+</footer>
+{% endblock %}

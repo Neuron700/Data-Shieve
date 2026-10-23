@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% load humanize ui_extras %}
+{% block title %}Quality rulebook · DataSieve{% endblock %}
+{% block body_class %}landing{% endblock %}
+{% block body %}
+<nav class="landing-nav" aria-label="Main navigation">
+  <a class="brand" href="{% url 'projects:home' %}">
+    <span class="brand-mark"><svg aria-hidden="true"><use href="#icon-logo"></use></svg></span>
+    <span>DataSieve<small>Data quality workspace</small></span>
+  </a>
+  <div class="landing-links">
+    <a href="{% url 'projects:home' %}">Home</a>
+    <a href="#rules">Rules</a>
+    <a href="#scoring">Scoring</a>
+  </div>
+  <div class="action-group">
+    {% if user.is_authenticated %}
+      <a class="btn btn-secondary btn-sm" href="{% url 'projects:dashboard' %}">Open workspace</a>
+    {% else %}
+      <a class="btn btn-ghost btn-sm" href="{% url 'accounts:login' %}">Sign in</a>
+      <a class="btn btn-primary btn-sm" href="{% url 'accounts:signup' %}">Create account</a>
+    {% endif %}
+  </div>
+</nav>
+
+<main class="landing-section" id="main-content">
+  <div class="page-head">
+    <div>
+      <div class="section-kicker">Rulebook · engine 1.0</div>
+      <h1 class="page-title">What DataSieve checks</h1>
+      <p class="page-subtitle" style="max-width:680px">Ten deterministic rules turn structural patterns into findings with counts, row positions, explanations, and recommendations. The score is a product indicator, not a certification.</p>
+    </div>
+  </div>
+
+  <div class="split" style="margin-top:20px">
+    <div class="stack" id="rules">
+      {% for rule in rules %}
+        <section class="card">
+          <div class="card-body">
+            <div class="flex items-start justify-between gap-3 flex-wrap">
+              <div class="flex items-start gap-3" style="min-width:0">
+                <span class="rule-code">{{ rule.rule_id }}</span>
+                <div>
+                  <h2 class="card-title">{{ rule.name }}</h2>
+                  <p class="card-subtitle">{{ rule.description }}</p>
+                </div>
+              </div>
+              <span class="severity severity-{{ rule.default_severity }}">{{ rule.default_severity|title }}</span>
+            </div>
+            <div class="form-note" style="margin-top:12px">
+              <svg aria-hidden="true"><use href="#icon-info"></use></svg>
+              <span>Findings include affected counts and up to 20 sample row positions. Raw sensitive values are not copied into explanations or recommendations.</span>
+            </div>
+          </div>
+        </section>
+      {% endfor %}
+    </div>
+
+    <aside class="stack">
+      <section class="card" id="scoring">
+        <div class="card-head"><h2 class="card-title">Score bands</h2></div>
+        <div class="card-body">
+          <div class="stack">
+            <div class="flex items-center justify-between"><span class="badge score-strong">Strong</span><span class="mono text-muted">{{ bands.strong }}–100</span></div>
+            <div class="flex items-center justify-between"><span class="badge score-good">Good</span><span class="mono text-muted">{{ bands.good }}–{{ bands.strong|subtract:1 }}</span></div>
+            <div class="flex items-center justify-between"><span class="badge score-review">Needs review</span><span class="mono text-muted">{{ bands.needs_review }}–{{ bands.good|subtract:1 }}</span></div>
+            <div class="flex items-center justify-between"><span class="badge score-poor">Poor</span><span class="mono text-muted">0–{{ bands.needs_review|subtract:1 }}</span></div>
+          </div>
+          <div class="form-note"><svg aria-hidden="true"><use href="#icon-info"></use></svg><span>Scores are rounded to the nearest integer. The formula version is stored with each analysis.</span></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2 class="card-title">Maximum deductions</h2></div>
+        <div class="card-body">
+          <div class="stack">
+            {% for key, weight in weights.items %}
+              {% if weight %}
+                <div class="flex items-center justify-between gap-3">
+                  <span class="text-sm">
+                    {% if key == "missing_max" %}Missing cells
+                    {% elif key == "duplicate_max" %}Duplicate rows
+                    {% elif key == "structural_max" %}Structural findings (cap)
+                    {% else %}{% with rule=rule_map|get_item:key %}{{ rule.name|default:key }}{% endwith %}{% endif %}
+                  </span>
+                  <span class="mono text-muted">{{ weight|floatformat:"-2g" }}</span>
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+          <div class="form-note"><svg aria-hidden="true"><use href="#icon-hash"></use></svg><span>DS008 potential outliers are reported but carry a weight of zero. They do not silently reduce the score.</span></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2 class="card-title">Score formula</h2></div>
+        <div class="card-body">
+          <div class="metric-tile" style="background:#07111f;color:#dffcf8;border-color:#172b3f">
+            <div class="mini-label" style="color:#7f9bae">Quality score</div>
+            <div class="mono" style="margin-top:8px;font-size:11.5px;line-height:1.8">100 − missing penalty<br>− duplicate penalty<br>− structural penalties</div>
+          </div>
+          <p class="text-sm text-muted" style="line-height:1.6;margin:12px 0 0">Missing and duplicate deductions scale with their share of cells and rows. Structural deductions scale with affected rows, with a minimum weight per triggered rule and a 40-point cap.</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2 class="card-title">Limits</h2></div>
+        <div class="card-body">
+          <ul class="text-sm text-muted" style="padding-left:18px;line-height:1.65;margin:0">
+            <li>Rules check structural and heuristic patterns; they do not prove semantic correctness.</li>
+            <li>Business importance is not inferred; all columns are assessed by affected-row share.</li>
+            <li>Sensitive-data detection is heuristic and can miss personal data.</li>
+            <li>Masking and pseudonymization are not legal anonymization guarantees.</li>
+          </ul>
+        </div>
+      </section>
+    </aside>
+  </div>
+</main>
+
+<footer class="landing-footer">
+  <span>DataSieve · deterministic data quality workspace</span>
+  <div class="action-group">
+    <a href="{% url 'projects:home' %}">Home</a>
+    {% if not user.is_authenticated %}<a href="{% url 'accounts:signup' %}">Create account</a>{% endif %}
+  </div>
+</footer>
+{% endblock %}

@@ -1,0 +1,288 @@
+{% extends "base_app.html" %}
+{% load humanize ui_extras %}
+{% block title %}{{ dataset.original_filename }} · DataSieve{% endblock %}
+{% block breadcrumbs %}
+<a href="{% url 'projects:list' %}">Projects</a>
+<svg aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+<a href="{% url 'projects:detail' dataset.project_id %}">{{ dataset.project.name|truncatechars:24 }}</a>
+<svg aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+<span class="truncate" style="max-width:300px">{{ dataset.original_filename }}</span>
+{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-secondary btn-sm" href="{% url 'reports:index' dataset.pk %}?version={{ version.pk }}">
+  <svg aria-hidden="true"><use href="#icon-download"></use></svg>
+  Reports
+</a>
+{% endblock %}
+{% block content %}
+<div class="detail-header">
+  <div class="detail-top">
+    <div class="file-title">
+      <span class="file-glyph"><svg aria-hidden="true"><use href="#icon-{% if dataset.file_format == 'xlsx' %}file-spreadsheet{% else %}file-text{% endif %}"></use></svg></span>
+      <div style="min-width:0">
+        <div class="flex items-center gap-2 flex-wrap">
+          <h1 class="page-title" style="font-size:23px;overflow-wrap:anywhere">{{ dataset.original_filename }}</h1>
+          <span class="badge badge-{{ dataset.status|status_tone }}">{{ dataset.get_status_display }}</span>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap" style="margin-top:5px">
+          <span class="search-results-meta">{{ dataset.file_format|upper }} · {{ dataset.file_size|filesizeformat }} · {{ dataset.row_count|intcomma }} rows × {{ dataset.column_count }} columns</span>
+          <span class="search-results-meta">·</span>
+          <a class="text-brand text-sm" href="{% url 'projects:detail' dataset.project_id %}">{{ dataset.project.name }}</a>
+        </div>
+      </div>
+    </div>
+    <div class="page-actions">
+      <a class="btn btn-secondary" href="{% url 'datasets:preview' dataset.pk %}?version={{ version.pk }}"><svg aria-hidden="true"><use href="#icon-rows"></use></svg> Full preview</a>
+      <a class="btn btn-secondary" href="{% url 'profiling:overview' dataset.pk %}?version={{ version.pk }}"><svg aria-hidden="true"><use href="#icon-bar-chart"></use></svg> Profile</a>
+      <a class="btn btn-secondary" href="{% url 'quality:findings' dataset.pk %}?version={{ version.pk }}"><svg aria-hidden="true"><use href="#icon-shield"></use></svg> Findings</a>
+      <a class="btn btn-primary" href="{% url 'cleaning:workspace' dataset.pk %}?version={{ version.pk }}"><svg aria-hidden="true"><use href="#icon-wand"></use></svg> Clean</a>
+    </div>
+  </div>
+
+  <div class="flex items-center justify-between gap-3 flex-wrap" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
+    <form class="version-picker" method="get">
+      <label class="mini-label" for="version-select">Version</label>
+      <select class="select" id="version-select" name="version" style="width:auto;min-width:210px" data-auto-submit>
+        {% for item in versions %}
+          <option value="{{ item.pk }}" {% if item.pk == version.pk %}selected{% endif %}>{{ item.label }} · {{ item.row_count|intcomma }} rows</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-secondary btn-sm" type="submit">Switch</button>
+    </form>
+    <div class="action-group">
+      <a class="btn btn-ghost btn-sm" href="{% url 'datasets:versions' dataset.pk %}"><svg aria-hidden="true"><use href="#icon-layers"></use></svg> {{ versions|length }} version{{ versions|length|pluralize }}</a>
+      <a class="btn btn-ghost btn-sm" href="{% url 'datasets:delete' dataset.pk %}">Delete</a>
+    </div>
+  </div>
+</div>
+
+{% if completed_run %}
+  <div class="split">
+    <div class="stack">
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <h2 class="card-title">Quality findings</h2>
+            <p class="card-subtitle">{{ issue_total|intcomma }} finding record{{ issue_total|pluralize }} across {{ completed_run.summary.rule_summary|length }} rule group{{ completed_run.summary.rule_summary|length|pluralize }}.</p>
+          </div>
+          <a class="btn btn-secondary btn-sm" href="{% url 'quality:findings' dataset.pk %}?version={{ version.pk }}">Review findings <svg aria-hidden="true"><use href="#icon-arrow-right"></use></svg></a>
+        </div>
+        <div class="card-body">
+          <div class="grid grid-4">
+            <div class="metric-tile">
+              <div class="metric-label">High</div>
+              <div class="metric-value" style="color:var(--red)">{{ issue_counts.high|default:0|intcomma }}</div>
+            </div>
+            <div class="metric-tile">
+              <div class="metric-label">Medium</div>
+              <div class="metric-value" style="color:var(--amber)">{{ issue_counts.medium|default:0|intcomma }}</div>
+            </div>
+            <div class="metric-tile">
+              <div class="metric-label">Low</div>
+              <div class="metric-value" style="color:var(--blue)">{{ issue_counts.low|default:0|intcomma }}</div>
+            </div>
+            <div class="metric-tile">
+              <div class="metric-label">Info</div>
+              <div class="metric-value">{{ issue_counts.info|default:0|intcomma }}</div>
+            </div>
+          </div>
+          <div class="form-note" style="margin-top:14px">
+            <svg aria-hidden="true"><use href="#icon-info"></use></svg>
+            <span>Severity is rule-defined, not a judgement about your business. Open a finding for its explanation, affected row positions, and recommendation.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <h2 class="card-title">Preview</h2>
+            <p class="card-subtitle">
+              {% if preview %}
+                Showing {{ preview.shown_rows|intcomma }} of {{ preview.total_rows|intcomma }} rows · {{ version.label }}
+              {% else %}
+                Preview unavailable.
+              {% endif %}
+            </p>
+          </div>
+          <a class="btn btn-secondary btn-sm" href="{% url 'datasets:preview' dataset.pk %}?version={{ version.pk }}">Open table</a>
+        </div>
+        {% if preview_error %}
+          <div class="card-body"><div class="alert" style="margin:0"><svg class="icon" aria-hidden="true"><use href="#icon-alert-triangle"></use></svg><div>{{ preview_error }}</div></div></div>
+        {% elif preview %}
+          <div class="table-wrap">
+            <table class="preview-table">
+              <thead>
+                <tr>
+                  <th class="row-index">#</th>
+                  {% for column in preview.columns %}
+                    <th>{{ column }}{% if column in preview.masked_columns %} <span class="badge badge-warning" title="Values in this column are redacted">redacted</span>{% endif %}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in preview.rows %}
+                  <tr>
+                    <td class="row-index">{{ forloop.counter }}</td>
+                    {% for cell in row %}
+                      <td class="{% if not cell %}empty-cell{% endif %}">{% if cell %}{{ cell }}{% else %}—{% endif %}</td>
+                    {% endfor %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="preview-footnote">
+            <svg aria-hidden="true"><use href="#icon-lock"></use></svg>
+            <span>{% if preview.redaction_applied %}Sensitive columns and email/phone/ID-like values are redacted in this preview. {% endif %}Redaction is an interface safeguard, not anonymization of the stored source file.</span>
+          </div>
+        {% else %}
+          <div class="empty-inline">No preview rows could be loaded.</div>
+        {% endif %}
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <h2 class="card-title">Version history</h2>
+            <p class="card-subtitle">Originals are never overwritten. Cleaning creates a new version.</p>
+          </div>
+          <a class="btn btn-ghost btn-sm" href="{% url 'datasets:versions' dataset.pk %}">Manage versions</a>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Version</th><th>Type</th><th>Rows × cols</th><th>Created</th><th></th></tr></thead>
+            <tbody>
+              {% for item in versions %}
+                <tr>
+                  <td class="mono">v{{ item.version_number }}</td>
+                  <td><span class="badge {% if item.version_type == 'original' %}badge-neutral{% else %}badge-brand{% endif %}">{{ item.get_version_type_display }}</span></td>
+                  <td class="num">{{ item.row_count|intcomma }} × {{ item.column_count }}</td>
+                  <td><span class="search-results-meta">{{ item.created_at|naturaltime }}</span></td>
+                  <td class="num">{% if item.pk == version.pk %}<span class="badge badge-info">Viewing</span>{% else %}<a class="btn btn-ghost btn-sm" href="?version={{ item.pk }}">Open</a>{% endif %}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <aside class="stack">
+      <section class="card">
+        <div class="card-head"><h2 class="card-title">Quality score</h2></div>
+        <div class="card-body">
+          <div class="flex items-center gap-4">
+            <div class="score-ring {{ score.score|score_tone }}" style="--score:{{ score.score }}">
+              <div class="score-ring-inner">
+                <div class="score-ring-value">{{ score.score }}</div>
+                <div class="score-ring-label">of 100</div>
+              </div>
+            </div>
+            <div>
+              <span class="score-pill score-{{ score.score|score_tone }}">{{ score.category }}</span>
+              <p class="search-results-meta" style="margin-top:8px;max-width:160px">A traceable product indicator, not an industry benchmark.</p>
+            </div>
+          </div>
+          {% if score.limitations %}
+            <details style="margin-top:16px">
+              <summary class="text-sm text-brand" style="cursor:pointer">How this is calculated</summary>
+              <ul class="text-sm text-muted" style="padding-left:18px;line-height:1.6;margin-top:8px">
+                {% for item in score.limitations %}<li>{{ item }}</li>{% endfor %}
+              </ul>
+            </details>
+          {% endif %}
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2 class="card-title">Dataset metrics</h2></div>
+        <div class="card-body">
+          <div class="grid grid-2">
+            <div class="metric-tile"><div class="metric-label">Rows</div><div class="metric-value">{{ metrics.row_count|intcomma }}</div></div>
+            <div class="metric-tile"><div class="metric-label">Columns</div><div class="metric-value">{{ metrics.column_count|intcomma }}</div></div>
+            <div class="metric-tile"><div class="metric-label">Missing</div><div class="metric-value">{{ metrics.missing_cells|intcomma }}<small> ({{ metrics.missing_percentage|percent }})</small></div></div>
+            <div class="metric-tile"><div class="metric-label">Duplicates</div><div class="metric-value">{{ metrics.duplicate_rows|intcomma }}<small> ({{ metrics.duplicate_percentage|percent }})</small></div></div>
+          </div>
+          {% if score_contributions %}
+            <div class="form-section">
+              <div class="form-section-title">Score deductions</div>
+              <div class="stack">
+                {% for item in score_contributions %}
+                  <div>
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="text-sm">{{ item.label }}</span>
+                      <span class="mono text-muted">−{{ item.points }}</span>
+                    </div>
+                    <div class="progress" style="margin-top:5px"><span style="width:{{ item.points|share_of:40 }}%"></span></div>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2 class="card-title">Analysis</h2></div>
+        <div class="card-body">
+          <div class="meta-grid" style="grid-template-columns:1fr">
+            <div class="kv-row"><span class="mini-label">Version</span><span>v{{ version.version_number }} · {{ version.get_version_type_display }}</span></div>
+            <div class="kv-row"><span class="mini-label">Completed</span><span>{{ completed_run.completed_at|naturaltime }}</span></div>
+            <div class="kv-row"><span class="mini-label">Duration</span><span>{{ completed_run.summary.duration_seconds|default:"—" }}s</span></div>
+            <div class="kv-row"><span class="mini-label">Ruleset</span><span class="mono">{{ completed_run.summary.formula_version }}</span></div>
+          </div>
+          <form method="post" action="{% url 'datasets:analyze' dataset.pk %}" style="margin-top:14px">
+            {% csrf_token %}
+            <input type="hidden" name="version_id" value="{{ version.pk }}">
+            <button class="btn btn-secondary btn-sm" type="submit"><svg aria-hidden="true"><use href="#icon-refresh"></use></svg> Re-run analysis</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2 class="card-title">Cleaning history</h2>
+          <a class="btn btn-ghost btn-sm" href="{% url 'cleaning:workspace' dataset.pk %}?version={{ version.pk }}">New</a>
+        </div>
+        <div class="card-body">
+          {% if jobs %}
+            <div class="stack">
+              {% for job in jobs %}
+                <a class="analysis-row" href="{% url 'cleaning:preview' job.pk %}">
+                  <div style="min-width:0">
+                    <div class="truncate font-medium">{{ job.operation_config.operation|token_label }}</div>
+                    <div class="meta">{{ job.created_at|naturaltime }}{% if job.output_version %} · v{{ job.output_version.version_number }}{% endif %}</div>
+                  </div>
+                  <span class="badge badge-{{ job.status|status_tone }}">{{ job.get_status_display }}</span>
+                </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="empty-inline">No cleaning jobs yet.</div>
+          {% endif %}
+        </div>
+      </section>
+    </aside>
+  </div>
+{% else %}
+  <section class="card">
+    <div class="empty-state">
+      <div class="empty-icon"><svg aria-hidden="true"><use href="#icon-activity"></use></svg></div>
+      <h3>Profile this version</h3>
+      <p>Run the quality analysis to profile every column, evaluate ten rules, and produce a traceable quality score.</p>
+      {% if failed_run and failed_run.error_message %}
+        <div class="alert" style="text-align:left;max-width:620px;margin:0 auto 16px">
+          <svg class="icon" aria-hidden="true"><use href="#icon-alert-triangle"></use></svg>
+          <div><strong>Last analysis failed.</strong> {{ failed_run.error_message }}</div>
+        </div>
+      {% endif %}
+      <form method="post" action="{% url 'datasets:analyze' dataset.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="version_id" value="{{ version.pk }}">
+        <button class="btn btn-primary" type="submit"><svg aria-hidden="true"><use href="#icon-activity"></use></svg> Run analysis</button>
+      </form>
+    </div>
+  </section>
+{% endif %}
+{% endblock %}

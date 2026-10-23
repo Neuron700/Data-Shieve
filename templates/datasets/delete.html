@@ -1,0 +1,40 @@
+{% extends "base_app.html" %}
+{% load humanize %}
+{% block title %}Delete {{ dataset.original_filename }} · DataSieve{% endblock %}
+{% block breadcrumbs %}
+<a href="{% url 'datasets:detail' dataset.pk %}">{{ dataset.original_filename|truncatechars:34 }}</a>
+<svg aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+<span>Delete</span>
+{% endblock %}
+{% block topbar_actions %}{% endblock %}
+{% block content %}
+<div style="max-width:760px">
+  <div class="page-head">
+    <div>
+      <div class="eyebrow" style="color:var(--red)">Permanent action</div>
+      <h1 class="page-title">Delete this dataset?</h1>
+      <p class="page-subtitle">This removes every version, analysis, quality finding, cleaning job, and private file for this dataset.</p>
+    </div>
+  </div>
+
+  <section class="card" style="border-color:#fecdca">
+    <div class="card-body">
+      <div class="alert" style="background:var(--red-soft);border-color:#fecdca;color:#912018;margin-bottom:18px">
+        <svg class="icon" aria-hidden="true"><use href="#icon-alert-triangle"></use></svg>
+        <div>
+          <strong>{{ dataset.original_filename }}</strong> has {{ version_count|intcomma }} version{{ version_count|pluralize }}.
+          Deleting it also removes the dataset from {{ dataset.project.name }}. This cannot be undone.
+        </div>
+      </div>
+      <p class="text-sm text-muted">Download any cleaned data or quality reports you need before continuing.</p>
+      <form method="post">
+        {% csrf_token %}
+        <div class="form-actions">
+          <a class="btn btn-secondary" href="{% url 'datasets:detail' dataset.pk %}">Keep dataset</a>
+          <button class="btn btn-danger" type="submit">Delete dataset permanently</button>
+        </div>
+      </form>
+    </div>
+  </section>
+</div>
+{% endblock %}

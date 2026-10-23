@@ -1,0 +1,16 @@
+order_id,customer_name,email,phone,city,order_date,amount,category,notes,region
+ORD-1001,Ana Example,ana@example.com,0812-3456-7890,Jakarta,2026-01-05,125000,Home,Deliver after 18:00,Java
+ORD-1002,Budi Example,budi@example.com,0812-3456-7891,Bandung,2026-01-06,85000,home,Leave at reception,Java
+ORD-1003,Citra Example,citra@example.com,0812-3456-7892,Jakarta,2026-01-06,210000,Home,,Java
+ORD-1004,Dewi Example,dewi@example.com,0812-3456-7893,Surabaya,2026-01-07,95000,Office,Call before delivery,Java
+ORD-1005,Eko Example,eko@example.com,0812-3456-7894,Bandung,2026-01-08,,Home,,Java
+ORD-1006,Fajar Example,fajar@example.com,0812-3456-7895,Jakarta,Jan 9 2026,175000, home ,Gift wrap,Java
+ORD-1007,Gita Example,gita@example.com,0812-3456-7896,Yogyakarta,2026-01-10,450000,Office,,Java
+ORD-1008,Hadi Example,hadi@example.com,0812-3456-7897,Jakarta,2026-01-10,125000,Home,Deliver after 18:00,Java
+ORD-1009,Indra Example,indra@example.com,0812-3456-7898,Bandung,2026/01/11,320000,Office,Leave at reception,Java
+ORD-1010,Joko Example,joko@example.com,0812-3456-7899,Jakarta,2026-01-12,98000,home,Call before delivery,Java
+ORD-1011,Kartika Example,kartika@example.com,0812-3456-7900,Surabaya,2026-01-13,120000,Home,,Java
+ORD-1012,Lina Example,lina@example.com,0812-3456-7901,Jakarta,2026-01-14,150000,Office,,Java
+ORD-1001,Ana Example,ana@example.com,0812-3456-7890,Jakarta,2026-01-05,125000,Home,Deliver after 18:00,Java
+ORD-1014,Maya Example,maya@example.com,0812-3456-7902,Bandung,unknown,130000,Home,,Java
+ORD-1015,Nanda Example,nanda@example.com,0812-3456-7903,Jakarta,2026-01-16,2500000,Office,VIP order,Java

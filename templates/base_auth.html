@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block body_class %}auth-body{% endblock %}
+{% block body %}
+<div class="auth-shell">
+  <aside class="auth-side">
+    <a class="brand" href="{% url 'projects:home' %}">
+      <span class="brand-mark"><svg aria-hidden="true"><use href="#icon-logo"></use></svg></span>
+      <span>{{ product_name }}<small>Data quality workspace</small></span>
+    </a>
+    <div class="auth-quote">
+      <h2>Know what is in your data before you trust it.</h2>
+      <p>Upload a CSV or XLSX file, inspect deterministic findings, create a cleaned version, and keep the original intact.</p>
+      <div class="auth-quote-points">
+        <div class="auth-point"><svg aria-hidden="true"><use href="#icon-check-circle"></use></svg> Ten transparent quality rules</div>
+        <div class="auth-point"><svg aria-hidden="true"><use href="#icon-layers"></use></svg> Immutable source versions</div>
+        <div class="auth-point"><svg aria-hidden="true"><use href="#icon-lock"></use></svg> Private storage, owner-only access</div>
+      </div>
+    </div>
+    <div class="auth-side-foot">DataSieve runs locally. No uploads are sent to a third-party analysis service.</div>
+  </aside>
+  <main class="auth-main" id="main-content">
+    <div class="auth-card">
+      <a class="brand" href="{% url 'projects:home' %}">
+        <span class="brand-mark"><svg aria-hidden="true"><use href="#icon-logo"></use></svg></span>
+        <span>{{ product_name }}<small>Data quality workspace</small></span>
+      </a>
+      {% block auth_content %}{% endblock %}
+    </div>
+  </main>
+</div>
+{% endblock %}
